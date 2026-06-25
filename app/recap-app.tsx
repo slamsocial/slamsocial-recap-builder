@@ -1,0 +1,676 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+type Metric = { label: string; value: string; note: string };
+type Platform = {
+  name: string;
+  enabled: boolean;
+  posts: string;
+  views: string;
+  engagements: string;
+  er: string;
+  cpm: string;
+};
+type Upload = {
+  title: string;
+  platform: string;
+  url: string;
+  views: string;
+  likes: string;
+  comments: string;
+  shares: string;
+  saves: string;
+  reposts: string;
+};
+type ContentItem = {
+  title: string;
+  format: string;
+  platform: string;
+  mediaUrl: string;
+  mediaType: "image" | "video";
+  aspect: "4 / 5" | "9 / 16" | "1 / 1" | "16 / 9";
+};
+type OrganicItem = { title: string; type: string; url: string };
+type Recap = {
+  id: string;
+  slug: string;
+  client: string;
+  campaign: string;
+  period: string;
+  objective: string;
+  headline: string;
+  clientLogoUrl: string;
+  clientLogoName: string;
+  insightDriveUrl: string;
+  contentDriveUrl: string;
+  pink58Url: string;
+  pink58Password: string;
+  includePink58: boolean;
+  includeOrganic: boolean;
+  includeRecommendations: boolean;
+  metrics: Metric[];
+  platforms: Platform[];
+  uploads: Upload[];
+  content: ContentItem[];
+  organic: OrganicItem[];
+  pink58: Metric[];
+  recommendations: string;
+  methodology: string;
+  updatedAt: string;
+};
+
+const recapsKey = "slamsocial-recaps-v4";
+const sessionKey = "slamsocial-recap-session";
+const tabs = ["Setup", "Metrics", "Platforms", "Posts", "Content", "Modules"];
+const loginPassword = "slam";
+
+const sampleRecap: Recap = {
+  id: "minions",
+  slug: "minions",
+  client: "Universal Pictures",
+  campaign: "Minions launch campaign recap",
+  period: "Launch week through final creator post",
+  objective:
+    "Drive opening-week awareness through creator-led short-form content, social conversation, and entertainment culture pickup.",
+  headline:
+    "A bright, share-heavy creator campaign that beat forecast on views and delivered efficient CPM across short-form channels.",
+  clientLogoUrl: "",
+  clientLogoName: "",
+  insightDriveUrl: "https://drive.google.com/",
+  contentDriveUrl: "https://drive.google.com/",
+  pink58Url: "https://pink58.com/",
+  pink58Password: "client-password-here",
+  includePink58: true,
+  includeOrganic: true,
+  includeRecommendations: true,
+  metrics: [
+    { label: "Total views", value: "8.42M", note: "+18% vs forecast" },
+    { label: "Engagements", value: "512.8K", note: "6.09% engagement rate" },
+    { label: "CPM", value: "$4.82", note: "Target: below $6.00" },
+    { label: "Uploads live", value: "47", note: "31 creator deliverables" },
+  ],
+  platforms: [
+    { name: "TikTok", enabled: true, posts: "24", views: "5.8M", engagements: "348K", er: "6.0%", cpm: "$4.31" },
+    { name: "Instagram", enabled: true, posts: "18", views: "2.1M", engagements: "141K", er: "6.7%", cpm: "$5.18" },
+    { name: "X", enabled: true, posts: "5", views: "520K", engagements: "23.8K", er: "4.6%", cpm: "$6.05" },
+  ],
+  uploads: [
+    { title: "Creator launch wave", platform: "TikTok", url: "https://www.tiktok.com/@creator/video/launch-wave", views: "1.24M", likes: "94K", comments: "4.8K", shares: "11K", saves: "7.2K", reposts: "2.1K" },
+    { title: "Behind the scenes carousel", platform: "Instagram", url: "https://www.instagram.com/p/behind-the-scenes", views: "684K", likes: "42K", comments: "2.4K", shares: "5.1K", saves: "8.8K", reposts: "1.3K" },
+    { title: "Reaction clip thread", platform: "X", url: "https://x.com/slamsocial/status/reaction-thread", views: "212K", likes: "12K", comments: "810", shares: "2.2K", saves: "430", reposts: "3.4K" },
+  ],
+  content: [
+    { title: "Launch meme edit", format: "9:16 short-form", platform: "TikTok + Reels", mediaUrl: "", mediaType: "image", aspect: "9 / 16" },
+    { title: "Creator stitch prompt", format: "Reaction format", platform: "TikTok", mediaUrl: "", mediaType: "image", aspect: "9 / 16" },
+    { title: "Giveaway carousel", format: "Static carousel", platform: "Instagram", mediaUrl: "", mediaType: "image", aspect: "4 / 5" },
+    { title: "Opening weekend thread", format: "Text + clip", platform: "X", mediaUrl: "", mediaType: "image", aspect: "16 / 9" },
+  ],
+  organic: [
+    { title: "Entertainment blog roundup", type: "News article", url: "https://example.com/entertainment-roundup" },
+    { title: "Fan account compilation", type: "Organic social post", url: "https://www.instagram.com/p/fan-compilation" },
+    { title: "Cinema culture newsletter mention", type: "Newsletter", url: "https://example.com/newsletter/cinema-culture" },
+  ],
+  pink58: [
+    { label: "Posts tracked", value: "126", note: "Creator + earned clips" },
+    { label: "Views", value: "10.7M", note: "Pink58 tracked total" },
+    { label: "Likes", value: "642K", note: "Topline social likes" },
+    { label: "Comments", value: "41K", note: "Comment volume" },
+    { label: "Shares", value: "54K", note: "Share actions" },
+    { label: "Engagement rate", value: "6.8%", note: "Across tracked posts" },
+  ],
+  recommendations:
+    "Keep the creator remix format. Brief for more save-worthy carousel assets. Reserve paid amplification for posts with early share velocity.",
+  methodology:
+    "Metrics should be collected from platform insights, creator screenshots, Google Drive evidence, and Pink58 where relevant. Add the collection date before sending externally.",
+  updatedAt: new Date().toISOString(),
+};
+
+function makeId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
+function loadRecaps() {
+  if (typeof window === "undefined") return [sampleRecap];
+  const saved = window.localStorage.getItem(recapsKey);
+  if (!saved) return [sampleRecap];
+  try {
+    const parsed = JSON.parse(saved) as Recap[];
+    return parsed.length ? parsed : [sampleRecap];
+  } catch {
+    return [sampleRecap];
+  }
+}
+
+function saveRecaps(recaps: Recap[]) {
+  window.localStorage.setItem(recapsKey, JSON.stringify(recaps));
+}
+
+function updateAt<T>(rows: T[], index: number, patch: Partial<T>) {
+  return rows.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row);
+}
+
+function removeAt<T>(rows: T[], index: number) {
+  return rows.filter((_, rowIndex) => rowIndex !== index);
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  multiline = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  multiline?: boolean;
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      {multiline ? (
+        <textarea value={value} onChange={(event) => onChange(event.target.value)} />
+      ) : (
+        <input value={value} onChange={(event) => onChange(event.target.value)} />
+      )}
+    </label>
+  );
+}
+
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
+  return (
+    <button className={`toggle ${checked ? "is-on" : ""}`} onClick={onChange} type="button">
+      <span>{label}</span>
+      <i aria-hidden="true" />
+    </button>
+  );
+}
+
+function FileField({ label, accept, onLoad }: { label: string; accept: string; onLoad: (dataUrl: string, fileName: string, fileType: string) => void }) {
+  return (
+    <label className="file-field">
+      <span>{label}</span>
+      <input
+        accept={accept}
+        type="file"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => onLoad(String(reader.result), file.name, file.type);
+          reader.readAsDataURL(file);
+        }}
+      />
+    </label>
+  );
+}
+
+function LoadingScreen({ active }: { active: boolean }) {
+  if (!active) return null;
+  return (
+    <div className="slam-loader">
+      <div className="slam-ambient-loader" />
+      <div className="loader-card">
+        <div className="slam-ring">
+          <img alt="SlamSocial" src="/images/slamsocial-logo.png" />
+        </div>
+        <div className="slam-bar" />
+      </div>
+    </div>
+  );
+}
+
+export default function RecapApp({ initialMode = "dashboard", initialSlug }: { initialMode?: "dashboard" | "client"; initialSlug?: string }) {
+  const [loading, setLoading] = useState(true);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [loginValue, setLoginValue] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [recaps, setRecaps] = useState<Recap[]>([sampleRecap]);
+  const [activeId, setActiveId] = useState(sampleRecap.id);
+  const [view, setView] = useState<"dashboard" | "builder" | "client">(initialMode === "client" ? "client" : "dashboard");
+  const [activeTab, setActiveTab] = useState("Setup");
+  const [editorHidden, setEditorHidden] = useState(initialMode === "client");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const loaded = loadRecaps();
+    setRecaps(loaded);
+    const bySlug = initialSlug ? loaded.find((recap) => recap.slug === initialSlug) : null;
+    setActiveId(bySlug?.id ?? loaded[0]?.id ?? sampleRecap.id);
+    setLoggedIn(initialMode === "client" || window.sessionStorage.getItem(sessionKey) === "yes");
+    const timer = window.setTimeout(() => setLoading(false), 850);
+    return () => window.clearTimeout(timer);
+  }, [initialMode, initialSlug]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") saveRecaps(recaps);
+  }, [recaps]);
+
+  const activeRecap = recaps.find((recap) => recap.id === activeId) ?? recaps[0] ?? sampleRecap;
+  const activePlatforms = useMemo(() => activeRecap.platforms.filter((platform) => platform.enabled), [activeRecap.platforms]);
+  const previewUrl = `/p/${activeRecap.slug || "untitled"}`;
+
+  function patchRecap(patch: Partial<Recap>) {
+    setRecaps((current) =>
+      current.map((recap) =>
+        recap.id === activeRecap.id ? { ...recap, ...patch, updatedAt: new Date().toISOString() } : recap,
+      ),
+    );
+  }
+
+  function createRecap() {
+    const id = makeId();
+    const next: Recap = {
+      ...sampleRecap,
+      id,
+      slug: slugify(`campaign-${recaps.length + 1}`),
+      client: "New client",
+      campaign: "New campaign recap",
+      clientLogoUrl: "",
+      clientLogoName: "",
+      updatedAt: new Date().toISOString(),
+    };
+    setRecaps((current) => [next, ...current]);
+    setActiveId(id);
+    setView("builder");
+    setEditorHidden(false);
+  }
+
+  function duplicateRecap(recap: Recap) {
+    const id = makeId();
+    const next = {
+      ...recap,
+      id,
+      slug: slugify(`${recap.slug}-copy`),
+      campaign: `${recap.campaign} copy`,
+      updatedAt: new Date().toISOString(),
+    };
+    setRecaps((current) => [next, ...current]);
+    setActiveId(id);
+    setView("builder");
+  }
+
+  function deleteRecap(id: string) {
+    const remaining = recaps.filter((recap) => recap.id !== id);
+    const next = remaining.length ? remaining : [sampleRecap];
+    setRecaps(next);
+    setActiveId(next[0].id);
+  }
+
+  function login() {
+    if (loginValue.trim().toLowerCase() !== loginPassword) {
+      setLoginError("Use the workspace password.");
+      return;
+    }
+    window.sessionStorage.setItem(sessionKey, "yes");
+    setLoggedIn(true);
+  }
+
+  async function copyJson() {
+    await navigator.clipboard.writeText(JSON.stringify(activeRecap, null, 2));
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  }
+
+  if (!loggedIn) {
+    return (
+      <main className="builder-shell gate-shell">
+        <LoadingScreen active={loading} />
+        <div className="login-card">
+          <img alt="SlamSocial" src="/images/slamsocial-logo.png" />
+          <p>Private workspace</p>
+          <h1>Campaign recap dashboard</h1>
+          <form onSubmit={(event) => { event.preventDefault(); login(); }}>
+            <input autoFocus placeholder="Workspace password" type="password" value={loginValue} onChange={(event) => setLoginValue(event.target.value)} />
+            {loginError ? <span>{loginError}</span> : null}
+            <button type="submit">Enter dashboard</button>
+          </form>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className={`builder-shell ${editorHidden ? "is-client-framed" : ""}`}>
+      <LoadingScreen active={loading} />
+      <div className="ambient ambient-one" />
+      <div className="ambient ambient-two" />
+
+      <header className="topbar">
+        <button className="brand brand-button" type="button" onClick={() => setView("dashboard")}>
+          <img alt="SlamSocial" src="/images/slamsocial-logo.png" />
+          <span>Campaign Recaps</span>
+        </button>
+        {view !== "client" ? (
+          <div className="top-actions">
+            <button type="button" onClick={createRecap}>New recap</button>
+            <button type="button" onClick={() => setView("dashboard")}>Dashboard</button>
+            <button type="button" onClick={() => setEditorHidden((value) => !value)}>
+              {editorHidden ? "Show control deck" : "Hide control deck"}
+            </button>
+            <a className="button-link" href={previewUrl} target="_blank">Preview client</a>
+            <button type="button" onClick={copyJson}>{copied ? "Copied JSON" : "Copy JSON"}</button>
+            <button type="button" onClick={() => window.print()}>Print / PDF</button>
+          </div>
+        ) : null}
+      </header>
+
+      {view === "dashboard" ? (
+        <section className="dashboard">
+          <div className="dashboard-hero">
+            <p>Login dashboard</p>
+            <h1>Previous recaps, new campaigns, slugged client links.</h1>
+            <button type="button" onClick={createRecap}>Create new recap</button>
+          </div>
+          <div className="recap-list">
+            {recaps.map((recap) => (
+              <article className="recap-row" key={recap.id}>
+                <div>
+                  <p>{recap.client}</p>
+                  <h2>{recap.campaign}</h2>
+                  <span>{`/p/${recap.slug}`}</span>
+                </div>
+                <div className="row-actions">
+                  <button type="button" onClick={() => { setActiveId(recap.id); setView("builder"); setEditorHidden(false); }}>Edit</button>
+                  <a href={`/p/${recap.slug}`} target="_blank">Preview</a>
+                  <button type="button" onClick={() => duplicateRecap(recap)}>Duplicate</button>
+                  <button type="button" onClick={() => deleteRecap(recap.id)}>Delete</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <div className="workspace" id="top">
+          {!editorHidden ? (
+            <Editor
+              activeRecap={activeRecap}
+              activeTab={activeTab}
+              patchRecap={patchRecap}
+              setActiveTab={setActiveTab}
+            />
+          ) : null}
+          <RecapCanvas
+            activePlatforms={activePlatforms}
+            report={activeRecap}
+            clientMode={editorHidden || view === "client"}
+          />
+        </div>
+      )}
+    </main>
+  );
+}
+
+function Editor({
+  activeRecap,
+  activeTab,
+  patchRecap,
+  setActiveTab,
+}: {
+  activeRecap: Recap;
+  activeTab: string;
+  patchRecap: (patch: Partial<Recap>) => void;
+  setActiveTab: (tab: string) => void;
+}) {
+  return (
+    <aside className="editor-panel" aria-label="Recap editor">
+      <div className="editor-heading">
+        <p>Control deck</p>
+        <h1>Build the recap.</h1>
+        <span className="slug-preview">{`/p/${activeRecap.slug}`}</span>
+      </div>
+      <div className="tabs">
+        {tabs.map((tab) => (
+          <button className={activeTab === tab ? "active" : ""} key={tab} onClick={() => setActiveTab(tab)} type="button">
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "Setup" ? (
+        <div className="editor-stack">
+          <Field label="Client" value={activeRecap.client} onChange={(client) => patchRecap({ client })} />
+          <Field label="Campaign" value={activeRecap.campaign} onChange={(campaign) => patchRecap({ campaign })} />
+          <Field label="URL slug" value={activeRecap.slug} onChange={(slug) => patchRecap({ slug: slugify(slug) })} />
+          <FileField
+            accept="image/*"
+            label="Client logo"
+            onLoad={(clientLogoUrl, clientLogoName) => patchRecap({ clientLogoUrl, clientLogoName })}
+          />
+          {activeRecap.clientLogoName ? <p className="upload-note">{activeRecap.clientLogoName}</p> : null}
+          <Field label="Reporting period" value={activeRecap.period} onChange={(period) => patchRecap({ period })} />
+          <Field label="Campaign objective" value={activeRecap.objective} multiline onChange={(objective) => patchRecap({ objective })} />
+          <Field label="Executive headline" value={activeRecap.headline} multiline onChange={(headline) => patchRecap({ headline })} />
+          <Field label="Google Drive insights URL" value={activeRecap.insightDriveUrl} onChange={(insightDriveUrl) => patchRecap({ insightDriveUrl })} />
+          <Field label="Google Drive content URL" value={activeRecap.contentDriveUrl} onChange={(contentDriveUrl) => patchRecap({ contentDriveUrl })} />
+        </div>
+      ) : null}
+
+      {activeTab === "Metrics" ? (
+        <div className="editor-stack">
+          {activeRecap.metrics.map((metric, index) => (
+            <div className="row-editor" key={`${metric.label}-${index}`}>
+              <button className="remove" onClick={() => patchRecap({ metrics: removeAt(activeRecap.metrics, index) })} type="button">Remove</button>
+              <Field label="Label" value={metric.label} onChange={(label) => patchRecap({ metrics: updateAt(activeRecap.metrics, index, { label }) })} />
+              <Field label="Value" value={metric.value} onChange={(value) => patchRecap({ metrics: updateAt(activeRecap.metrics, index, { value }) })} />
+              <Field label="Note" value={metric.note} onChange={(note) => patchRecap({ metrics: updateAt(activeRecap.metrics, index, { note }) })} />
+            </div>
+          ))}
+          <button className="add" onClick={() => patchRecap({ metrics: [...activeRecap.metrics, { label: "New metric", value: "0", note: "Add context" }] })} type="button">Add metric</button>
+        </div>
+      ) : null}
+
+      {activeTab === "Platforms" ? (
+        <div className="editor-stack">
+          {activeRecap.platforms.map((platform, index) => (
+            <div className="row-editor" key={`${platform.name}-${index}`}>
+              <div className="split">
+                <Toggle checked={platform.enabled} label="Show" onChange={() => patchRecap({ platforms: updateAt(activeRecap.platforms, index, { enabled: !platform.enabled }) })} />
+                <button className="remove" onClick={() => patchRecap({ platforms: removeAt(activeRecap.platforms, index) })} type="button">Remove</button>
+              </div>
+              {(["name", "posts", "views", "engagements", "er", "cpm"] as const).map((field) => (
+                <Field key={field} label={field.toUpperCase()} value={String(platform[field])} onChange={(value) => patchRecap({ platforms: updateAt(activeRecap.platforms, index, { [field]: value }) })} />
+              ))}
+            </div>
+          ))}
+          <button className="add" onClick={() => patchRecap({ platforms: [...activeRecap.platforms, { name: "New platform", enabled: true, posts: "0", views: "0", engagements: "0", er: "0%", cpm: "$0" }] })} type="button">Add platform</button>
+        </div>
+      ) : null}
+
+      {activeTab === "Posts" ? (
+        <div className="editor-stack">
+          {activeRecap.uploads.map((upload, index) => (
+            <div className="row-editor" key={`${upload.title}-${index}`}>
+              <button className="remove" onClick={() => patchRecap({ uploads: removeAt(activeRecap.uploads, index) })} type="button">Remove</button>
+              {(["title", "platform", "url", "views", "likes", "comments", "shares", "saves", "reposts"] as const).map((field) => (
+                <Field key={field} label={field} value={upload[field]} onChange={(value) => patchRecap({ uploads: updateAt(activeRecap.uploads, index, { [field]: value }) })} />
+              ))}
+            </div>
+          ))}
+          <button className="add" onClick={() => patchRecap({ uploads: [...activeRecap.uploads, { title: "New upload", platform: "Platform", url: "https://", views: "0", likes: "0", comments: "0", shares: "0", saves: "0", reposts: "0" }] })} type="button">Add post link</button>
+        </div>
+      ) : null}
+
+      {activeTab === "Content" ? (
+        <div className="editor-stack">
+          {activeRecap.content.map((item, index) => (
+            <div className="row-editor" key={`${item.title}-${index}`}>
+              <button className="remove" onClick={() => patchRecap({ content: removeAt(activeRecap.content, index) })} type="button">Remove</button>
+              <FileField
+                accept="image/*,video/*"
+                label="Image or video"
+                onLoad={(mediaUrl, _fileName, fileType) => patchRecap({ content: updateAt(activeRecap.content, index, { mediaUrl, mediaType: fileType.startsWith("video") ? "video" : "image" }) })}
+              />
+              {(["title", "format", "platform"] as const).map((field) => (
+                <Field key={field} label={field} value={item[field]} onChange={(value) => patchRecap({ content: updateAt(activeRecap.content, index, { [field]: value }) })} />
+              ))}
+              <label className="field">
+                <span>Tile size</span>
+                <select value={item.aspect} onChange={(event) => patchRecap({ content: updateAt(activeRecap.content, index, { aspect: event.target.value as ContentItem["aspect"] }) })}>
+                  <option value="4 / 5">4:5</option>
+                  <option value="9 / 16">9:16</option>
+                  <option value="1 / 1">1:1</option>
+                  <option value="16 / 9">16:9</option>
+                </select>
+              </label>
+            </div>
+          ))}
+          <button className="add" onClick={() => patchRecap({ content: [...activeRecap.content, { title: "New content piece", format: "Format", platform: "Platform", mediaUrl: "", mediaType: "image", aspect: "4 / 5" }] })} type="button">Add content tile</button>
+        </div>
+      ) : null}
+
+      {activeTab === "Modules" ? (
+        <div className="editor-stack">
+          <Toggle checked={activeRecap.includePink58} label="Show Pink58 recap" onChange={() => patchRecap({ includePink58: !activeRecap.includePink58 })} />
+          <Toggle checked={activeRecap.includeOrganic} label="Show organic activity" onChange={() => patchRecap({ includeOrganic: !activeRecap.includeOrganic })} />
+          <Toggle checked={activeRecap.includeRecommendations} label="Show recommendations" onChange={() => patchRecap({ includeRecommendations: !activeRecap.includeRecommendations })} />
+          <Field label="Pink58 recap URL" value={activeRecap.pink58Url} onChange={(pink58Url) => patchRecap({ pink58Url })} />
+          <Field label="Pink58 password" value={activeRecap.pink58Password} onChange={(pink58Password) => patchRecap({ pink58Password })} />
+          <Field label="Recommendations" value={activeRecap.recommendations} multiline onChange={(recommendations) => patchRecap({ recommendations })} />
+          <Field label="Methodology note" value={activeRecap.methodology} multiline onChange={(methodology) => patchRecap({ methodology })} />
+        </div>
+      ) : null}
+    </aside>
+  );
+}
+
+function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; activePlatforms: Platform[]; clientMode: boolean }) {
+  return (
+    <section className={`recap-canvas ${clientMode ? "client-canvas" : ""}`} aria-label="Live campaign recap">
+      <section className="hero-block reveal-card">
+        <div className="hero-copy">
+          <p className="eyebrow">{report.client}</p>
+          <h2>{report.campaign}</h2>
+          <p className="hero-lede">{report.headline}</p>
+          <div className="slam-rule" />
+          <p className="period">{report.period}</p>
+        </div>
+        <div className="hero-mark">
+          <div className="logo-lockup">
+            <div className="orbit"><img alt="SlamSocial" src="/images/slamsocial-logo.png" /></div>
+            {report.clientLogoUrl ? (
+              <div className="client-logo-card">
+                <span>Client</span>
+                <img alt={`${report.client} logo`} src={report.clientLogoUrl} />
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section className="report-section objective-section reveal-card">
+        <p className="section-kicker">Objective</p>
+        <p>{report.objective}</p>
+      </section>
+
+      <section className="metric-grid reveal-card">
+        {report.metrics.map((metric) => (
+          <article className="metric-card" key={metric.label}>
+            <p>{metric.label}</p>
+            <strong>{metric.value}</strong>
+            <span>{metric.note}</span>
+          </article>
+        ))}
+      </section>
+
+      <section className="report-section reveal-card">
+        <div className="section-head">
+          <div><p className="section-kicker">Platform split</p><h3>Results by channel</h3></div>
+          <span>{activePlatforms.length} active channels</span>
+        </div>
+        <div className="platform-table">
+          <div className="platform-row table-head"><span>Platform</span><span>Posts</span><span>Views</span><span>Engagements</span><span>ER</span><span>CPM</span></div>
+          {activePlatforms.map((platform) => (
+            <div className="platform-row" key={platform.name}>
+              <strong>{platform.name}</strong><span>{platform.posts}</span><span>{platform.views}</span><span>{platform.engagements}</span><span>{platform.er}</span><span>{platform.cpm}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="report-section reveal-card">
+        <details className="post-details">
+          <summary>
+            <span><p className="section-kicker">Uploads</p><h3>Live post index</h3></span>
+            <b>{report.uploads.length} links</b>
+          </summary>
+          <div className="post-toolbar">
+            <a href={report.insightDriveUrl}>Insights Drive</a>
+            <a href={report.contentDriveUrl}>Content Drive</a>
+          </div>
+          <div className="post-index-table">
+            <div className="post-index-row table-head">
+              <span>Post</span><span>Platform</span><span>Views</span><span>Likes</span><span>Comments</span><span>Shares</span><span>Saves</span><span>Reposts</span>
+            </div>
+            {report.uploads.map((upload) => (
+              <a className="post-index-row" href={upload.url} key={`${upload.title}-${upload.url}`}>
+                <strong>{upload.title}</strong><span>{upload.platform}</span><span>{upload.views}</span><span>{upload.likes}</span><span>{upload.comments}</span><span>{upload.shares}</span><span>{upload.saves}</span><span>{upload.reposts}</span>
+              </a>
+            ))}
+          </div>
+        </details>
+      </section>
+
+      <section className="report-section reveal-card">
+        <div className="section-head">
+          <div><p className="section-kicker">Creative</p><h3>Content used</h3></div>
+          <a href={report.contentDriveUrl}>Content Drive</a>
+        </div>
+        <div className="content-grid">
+          {report.content.map((item, index) => (
+            <article className="content-card" key={`${item.title}-${index}`}>
+              <div className="thumb media-thumb" style={{ aspectRatio: item.aspect }}>
+                {item.mediaUrl ? (
+                  item.mediaType === "video" ? <video src={item.mediaUrl} muted playsInline controls /> : <img alt={item.title} src={item.mediaUrl} />
+                ) : <span>{String(index + 1).padStart(2, "0")}</span>}
+              </div>
+              <strong>{item.title}</strong>
+              <p>{item.format}</p>
+              <small>{item.platform}</small>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {report.includePink58 ? (
+        <section className="report-section pink-section reveal-card">
+          <div className="section-head">
+            <div><p className="section-kicker">Pink58 clipping</p><h3>Topline tracking recap</h3></div>
+            <a href={report.pink58Url}>Full Pink58 report</a>
+          </div>
+          <div className="password-note"><span>Password</span><strong>{report.pink58Password}</strong></div>
+          <div className="pink-grid">
+            {report.pink58.map((metric) => <article key={metric.label}><span>{metric.label}</span><strong>{metric.value}</strong><p>{metric.note}</p></article>)}
+          </div>
+        </section>
+      ) : null}
+
+      {report.includeOrganic ? (
+        <section className="report-section reveal-card">
+          <div className="section-head"><div><p className="section-kicker">Organic lift</p><h3>Earned activity off the back of the campaign</h3></div></div>
+          <div className="organic-list">
+            {report.organic.map((item) => <a href={item.url} key={`${item.title}-${item.url}`}><span>{item.type}</span><strong>{item.title}</strong></a>)}
+          </div>
+        </section>
+      ) : null}
+
+      {report.includeRecommendations ? (
+        <section className="report-section recommendation-section reveal-card">
+          <div><p className="section-kicker">What next</p><h3>Recommendations</h3></div>
+          <p>{report.recommendations}</p>
+        </section>
+      ) : null}
+
+      <section className="methodology reveal-card"><p>{report.methodology}</p></section>
+    </section>
+  );
+}

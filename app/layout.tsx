@@ -13,11 +13,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SlamSocial Recap Builder",
-  description: "A templated post-campaign case study builder for SlamSocial.",
+  title: "SlamSocial Campaign Recap",
+  description: "SlamSocial campaign recap.",
+  openGraph: {
+    title: "SlamSocial Campaign Recap",
+    description: "SlamSocial campaign recap.",
+    siteName: "SlamSocial Campaign Recap",
+    images: ["/images/slamsocial-logo.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SlamSocial Campaign Recap",
+    description: "SlamSocial campaign recap.",
+    images: ["/images/slamsocial-logo.png"],
+  },
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: "/images/slamsocial-logo.png",
+    shortcut: "/images/slamsocial-logo.png",
+    apple: "/images/slamsocial-logo.png",
   },
 };
 
