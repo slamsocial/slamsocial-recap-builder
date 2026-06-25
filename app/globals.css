@@ -1189,9 +1189,10 @@ button:active {
 }
 
 .login-card h1 {
-  max-width: 100%;
-  font-size: clamp(2.25rem, 6vw, 4.15rem);
-  line-height: 0.94;
+  max-width: 12ch;
+  margin-inline: auto;
+  font-size: clamp(1.9rem, 4.3vw, 2.95rem);
+  line-height: 1;
   overflow-wrap: normal;
   word-break: normal;
 }
