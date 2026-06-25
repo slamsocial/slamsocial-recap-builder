@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Metric = { label: string; value: string; note: string };
 type Platform = {
@@ -63,7 +63,7 @@ type Recap = {
 const recapsKey = "slamsocial-recaps-v4";
 const sessionKey = "slamsocial-recap-session";
 const tabs = ["Setup", "Metrics", "Platforms", "Posts", "Content", "Modules"];
-const loginPassword = "slam";
+const loginPassword = "Admin1";
 
 const sampleRecap: Recap = {
   id: "minions",
@@ -195,6 +195,36 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   );
 }
 
+function AnimatedMetricValue({ value }: { value: string }) {
+  const match = useMemo(() => value.match(/^([^0-9-]*)(-?\d+(?:\.\d+)?)(.*)$/), [value]);
+  const [displayValue, setDisplayValue] = useState(value);
+  const frameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!match) return;
+
+    const [, prefix, rawNumber, suffix] = match;
+    const target = Number(rawNumber);
+    const decimals = rawNumber.includes(".") ? rawNumber.split(".")[1].length : 0;
+    const start = performance.now();
+    const duration = 1150;
+
+    function tick(now: number) {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(`${prefix}${(target * eased).toFixed(decimals)}${suffix}`);
+      if (progress < 1) frameRef.current = requestAnimationFrame(tick);
+    }
+
+    frameRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [match]);
+
+  return <>{match ? displayValue : value}</>;
+}
+
 function FileField({ label, accept, onLoad }: { label: string; accept: string; onLoad: (dataUrl: string, fileName: string, fileType: string) => void }) {
   return (
     <label className="file-field">
@@ -242,13 +272,18 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const loaded = loadRecaps();
-    setRecaps(loaded);
-    const bySlug = initialSlug ? loaded.find((recap) => recap.slug === initialSlug) : null;
-    setActiveId(bySlug?.id ?? loaded[0]?.id ?? sampleRecap.id);
-    setLoggedIn(initialMode === "client" || window.sessionStorage.getItem(sessionKey) === "yes");
-    const timer = window.setTimeout(() => setLoading(false), 850);
-    return () => window.clearTimeout(timer);
+    const setupTimer = window.setTimeout(() => {
+      const loaded = loadRecaps();
+      setRecaps(loaded);
+      const bySlug = initialSlug ? loaded.find((recap) => recap.slug === initialSlug) : null;
+      setActiveId(bySlug?.id ?? loaded[0]?.id ?? sampleRecap.id);
+      setLoggedIn(initialMode === "client" || window.sessionStorage.getItem(sessionKey) === "yes");
+    }, 0);
+    const loadingTimer = window.setTimeout(() => setLoading(false), 850);
+    return () => {
+      window.clearTimeout(setupTimer);
+      window.clearTimeout(loadingTimer);
+    };
   }, [initialMode, initialSlug]);
 
   useEffect(() => {
@@ -307,7 +342,7 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
   }
 
   function login() {
-    if (loginValue.trim().toLowerCase() !== loginPassword) {
+    if (loginValue.trim() !== loginPassword) {
       setLoginError("Use the workspace password.");
       return;
     }
@@ -367,8 +402,7 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
       {view === "dashboard" ? (
         <section className="dashboard">
           <div className="dashboard-hero">
-            <p>Login dashboard</p>
-            <h1>Previous recaps, new campaigns, slugged client links.</h1>
+            <h1>Create new recap</h1>
             <button type="button" onClick={createRecap}>Create new recap</button>
           </div>
           <div className="recap-list">
@@ -544,6 +578,8 @@ function Editor({
 }
 
 function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; activePlatforms: Platform[]; clientMode: boolean }) {
+  const [postIndexOpen, setPostIndexOpen] = useState(false);
+
   return (
     <section className={`recap-canvas ${clientMode ? "client-canvas" : ""}`} aria-label="Live campaign recap">
       <section className="hero-block reveal-card">
@@ -576,7 +612,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
         {report.metrics.map((metric) => (
           <article className="metric-card" key={metric.label}>
             <p>{metric.label}</p>
-            <strong>{metric.value}</strong>
+            <strong><AnimatedMetricValue value={metric.value} /></strong>
             <span>{metric.note}</span>
           </article>
         ))}
@@ -598,26 +634,30 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
       </section>
 
       <section className="report-section reveal-card">
-        <details className="post-details">
-          <summary>
+        <div className={`post-details ${postIndexOpen ? "is-open" : ""}`}>
+          <button className="post-summary" type="button" onClick={() => setPostIndexOpen((open) => !open)}>
             <span><p className="section-kicker">Uploads</p><h3>Live post index</h3></span>
-            <b>{report.uploads.length} links</b>
-          </summary>
-          <div className="post-toolbar">
-            <a href={report.insightDriveUrl}>Insights Drive</a>
-            <a href={report.contentDriveUrl}>Content Drive</a>
-          </div>
-          <div className="post-index-table">
-            <div className="post-index-row table-head">
-              <span>Post</span><span>Platform</span><span>Views</span><span>Likes</span><span>Comments</span><span>Shares</span><span>Saves</span><span>Reposts</span>
+            <span className="expand-pill"><i aria-hidden="true" />{postIndexOpen ? "Hide" : "View"} {report.uploads.length} links</span>
+          </button>
+          <div className="post-panel">
+            <div className="post-panel-inner">
+              <div className="post-toolbar">
+                <a href={report.insightDriveUrl}>Insights Drive</a>
+                <a href={report.contentDriveUrl}>Content Drive</a>
+              </div>
+              <div className="post-index-table">
+                <div className="post-index-row table-head">
+                  <span>Post</span><span>Platform</span><span>Views</span><span>Likes</span><span>Comments</span><span>Shares</span><span>Saves</span><span>Reposts</span>
+                </div>
+                {report.uploads.map((upload) => (
+                  <a className="post-index-row" href={upload.url} key={`${upload.title}-${upload.url}`}>
+                    <strong>{upload.title}</strong><span>{upload.platform}</span><span>{upload.views}</span><span>{upload.likes}</span><span>{upload.comments}</span><span>{upload.shares}</span><span>{upload.saves}</span><span>{upload.reposts}</span>
+                  </a>
+                ))}
+              </div>
             </div>
-            {report.uploads.map((upload) => (
-              <a className="post-index-row" href={upload.url} key={`${upload.title}-${upload.url}`}>
-                <strong>{upload.title}</strong><span>{upload.platform}</span><span>{upload.views}</span><span>{upload.likes}</span><span>{upload.comments}</span><span>{upload.shares}</span><span>{upload.saves}</span><span>{upload.reposts}</span>
-              </a>
-            ))}
           </div>
-        </details>
+        </div>
       </section>
 
       <section className="report-section reveal-card">
@@ -645,7 +685,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
         <section className="report-section pink-section reveal-card">
           <div className="section-head">
             <div><p className="section-kicker">Pink58 clipping</p><h3>Topline tracking recap</h3></div>
-            <a href={report.pink58Url}>Full Pink58 report</a>
+            <a className="report-cta" href={report.pink58Url}><span>Full Pink58 report</span><i aria-hidden="true" /></a>
           </div>
           <div className="password-note"><span>Password</span><strong>{report.pink58Password}</strong></div>
           <div className="pink-grid">
