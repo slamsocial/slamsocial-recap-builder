@@ -2132,7 +2132,8 @@ button:active {
   }
 
   .recommendation-section p:last-child {
-    font-size: 1.18rem;
+    font-size: clamp(1rem, 4.6vw, 1.16rem);
+    line-height: 1.42;
     max-width: 100%;
     overflow-wrap: anywhere;
     word-break: break-word;
@@ -2140,10 +2141,11 @@ button:active {
 
   .recommendation-section h3 {
     max-width: 100%;
-    font-size: clamp(1.85rem, 9vw, 2.85rem);
-    line-height: 0.96;
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    font-size: clamp(1.42rem, 6.5vw, 2.08rem);
+    line-height: 0.98;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    white-space: nowrap;
   }
 
   .section-head h3,
@@ -2296,11 +2298,11 @@ button:active {
   }
 
   .recommendation-section h3 {
-    font-size: clamp(1.75rem, 8.5vw, 2.6rem);
+    font-size: clamp(1.2rem, 6vw, 1.78rem);
   }
 
   .recommendation-section p:last-child {
-    font-size: 1.05rem;
+    font-size: 1rem;
   }
 }
 
