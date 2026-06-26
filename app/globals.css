@@ -234,6 +234,7 @@ button:active {
 .is-client-framed .workspace {
   grid-template-columns: minmax(0, 1fr);
   width: min(1360px, 100%);
+  padding-top: clamp(0.8rem, 2.2vw, 1.4rem);
 }
 
 .is-client-framed .topbar {
@@ -465,6 +466,10 @@ button:active {
 
 .client-canvas {
   padding-top: 1.25rem;
+}
+
+.client-canvas .hero-block {
+  min-height: min(620px, calc(100svh - 2.5rem));
 }
 
 .hero-block,
@@ -1292,6 +1297,19 @@ button:active {
 }
 
 @media (max-width: 980px) {
+  .is-client-framed .workspace {
+    width: 100%;
+    padding: 0.8rem;
+  }
+
+  .client-canvas {
+    padding-top: 0;
+  }
+
+  .client-canvas .hero-block {
+    min-height: auto;
+  }
+
   .workspace {
     grid-template-columns: 1fr;
     gap: 1rem;
@@ -1877,17 +1895,34 @@ button:active {
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
   .topbar,
   .editor-panel,
   .ambient,
-  .builder-shell::before {
+  .builder-shell::before,
+  .slam-loader {
     display: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
   }
 
   html,
   body,
   .builder-shell {
     background: #070b14 !important;
+    color: var(--paper) !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .workspace {
@@ -1897,14 +1932,143 @@ button:active {
   }
 
   .recap-canvas {
-    gap: 0.75rem;
+    display: block;
+    width: 100%;
   }
 
   .hero-block,
   .report-section,
   .metric-card,
   .methodology {
+    margin: 0 0 8mm;
+    border-radius: 10px;
     box-shadow: none;
     break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .hero-block,
+  .report-split,
+  .metric-grid,
+  .content-grid,
+  .pink-grid,
+  .organic-list {
+    display: grid;
+    grid-template-columns: 1fr !important;
+  }
+
+  .hero-block {
+    min-height: auto !important;
+    padding: 9mm;
+  }
+
+  .hero-copy h2 {
+    max-width: 12ch;
+    font-size: 44pt;
+    line-height: 0.88;
+  }
+
+  .hero-lede,
+  .objective-section p:last-child,
+  .recommendation-section p:last-child {
+    font-size: 13pt;
+    line-height: 1.38;
+  }
+
+  .hero-mark {
+    min-height: 0;
+    padding-top: 8mm;
+  }
+
+  .orbit {
+    width: 52mm;
+  }
+
+  .client-logo-card {
+    width: 58mm;
+  }
+
+  .section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .section-head h3,
+  .post-summary h3,
+  .recommendation-section h3 {
+    font-size: 25pt;
+    line-height: 0.92;
+  }
+
+  .metric-grid {
+    gap: 5mm;
+  }
+
+  .metric-card {
+    min-height: auto;
+  }
+
+  .metric-card strong,
+  .pink-grid strong {
+    font-size: 32pt;
+  }
+
+  .platform-table,
+  .post-index-table {
+    overflow: visible;
+  }
+
+  .platform-row,
+  .post-index-row {
+    min-width: 0;
+    grid-template-columns: 1.15fr repeat(5, 0.7fr);
+    gap: 3mm;
+    padding: 3.2mm;
+    font-size: 7.5pt;
+  }
+
+  .post-index-row {
+    grid-template-columns: 1.35fr 0.85fr repeat(6, 0.62fr);
+  }
+
+  .platform-logo {
+    width: 18px;
+    height: 18px;
+    font-size: 8px;
+  }
+
+  .platform-badge {
+    gap: 0.35rem;
+  }
+
+  .platform-label {
+    white-space: normal;
+  }
+
+  .post-panel {
+    display: block;
+    opacity: 1;
+  }
+
+  .post-panel-inner {
+    overflow: visible;
+  }
+
+  .post-toolbar,
+  .expand-pill {
+    display: none;
+  }
+
+  .password-note {
+    border-radius: 10px;
+  }
+
+  .thumb span {
+    font-size: 24pt;
+  }
+
+  .report-section,
+  .methodology {
+    padding: 7mm;
   }
 }
