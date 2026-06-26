@@ -648,6 +648,7 @@ button:active {
 
 .report-section,
 .methodology {
+  min-width: 0;
   padding: clamp(1rem, 2.2vw, 1.5rem);
 }
 
@@ -664,16 +665,19 @@ button:active {
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
+  min-width: 0;
   margin-bottom: 1rem;
 }
 
 .section-head h3,
 .recommendation-section h3 {
+  max-width: 100%;
   margin: 0.25rem 0 0;
   font-family: "Archivo Black", sans-serif;
   font-size: clamp(1.6rem, 3.5vw, 3.2rem);
   line-height: 0.9;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .section-head > span,
@@ -1522,8 +1526,55 @@ button:active {
   display: grid;
   place-items: center;
   background: #070b14;
-  animation: loaderOut 700ms ease 650ms both;
   pointer-events: none;
+}
+
+.publish-panel {
+  position: fixed;
+  right: clamp(0.8rem, 3vw, 1.4rem);
+  bottom: clamp(0.8rem, 3vw, 1.4rem);
+  z-index: 40;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  gap: 0.7rem;
+  align-items: end;
+  width: min(720px, calc(100vw - 1.6rem));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 1rem;
+  padding: 0.85rem;
+  background: rgba(10, 16, 29, 0.94);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(18px);
+}
+
+.publish-panel input {
+  width: 100%;
+  margin-top: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.75rem;
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--paper);
+  padding: 0.72rem 0.8rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.82rem;
+}
+
+.publish-panel button {
+  min-height: 2.55rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  padding: 0 0.9rem;
+  background: linear-gradient(90deg, var(--red), var(--purple), var(--blue));
+  color: var(--paper);
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.publish-panel .publish-close {
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .slam-ambient-loader {
@@ -1654,6 +1705,21 @@ button:active {
 }
 
 @media (max-width: 760px) {
+  .builder-shell,
+  .is-client-framed .workspace,
+  .client-canvas,
+  .hero-block,
+  .report-section,
+  .metric-card,
+  .methodology {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .ambient {
+    display: none;
+  }
+
   .topbar {
     align-items: flex-start;
     flex-direction: column;
@@ -1699,14 +1765,42 @@ button:active {
     max-width: 10ch;
     font-size: clamp(2.55rem, 15vw, 4.9rem);
     line-height: 0.88;
+    overflow-wrap: anywhere;
   }
 
   .hero-lede {
+    max-width: 100%;
     font-size: 1rem;
+    overflow-wrap: anywhere;
   }
 
   .hero-mark {
     min-height: 230px;
+  }
+
+  .client-canvas .hero-copy h2 {
+    max-width: 100%;
+    font-size: clamp(2.2rem, 12vw, 3.6rem);
+  }
+
+  .client-canvas .hero-mark {
+    justify-items: center;
+    min-height: 190px;
+  }
+
+  .client-canvas .orbit {
+    width: min(220px, 68vw);
+  }
+
+  .client-canvas .slam-rule {
+    width: 100%;
+  }
+
+  .period,
+  .objective-section p:last-child,
+  .recommendation-section p:last-child {
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 
   .metric-grid,
@@ -1716,13 +1810,40 @@ button:active {
     grid-template-columns: 1fr;
   }
 
-  .platform-table {
-    overflow-x: auto;
+  .platform-table,
+  .post-index-table {
+    overflow: visible;
   }
 
-  .platform-row {
-    min-width: 620px;
+  .platform-row,
+  .post-index-row {
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+    align-items: start;
     font-size: 0.78rem;
+  }
+
+  .platform-row.table-head,
+  .post-index-row.table-head {
+    display: none;
+  }
+
+  .platform-row strong,
+  .post-index-row strong {
+    grid-column: 1 / -1;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .platform-row span,
+  .post-index-row span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .platform-label {
+    white-space: normal;
   }
 
   .metric-card {
@@ -1736,6 +1857,7 @@ button:active {
   .section-head {
     align-items: flex-start;
     flex-direction: column;
+    max-width: 100%;
   }
 
   .recommendation-section p:last-child {
@@ -1744,6 +1866,13 @@ button:active {
 
   .recommendation-section h3 {
     font-size: clamp(2.2rem, 13vw, 4.1rem);
+  }
+
+  .section-head h3,
+  .post-summary h3 {
+    max-width: 100%;
+    font-size: clamp(1.9rem, 10vw, 3rem);
+    overflow-wrap: anywhere;
   }
 
   .dashboard-hero,
@@ -1773,16 +1902,18 @@ button:active {
     width: 6.6rem;
   }
 
-  .post-index-row {
-    min-width: 840px;
-    grid-template-columns: minmax(180px, 1.5fr) repeat(7, minmax(78px, 0.7fr));
-    font-size: 0.72rem;
-  }
-
   .organic-list a,
   .link-list a {
     gap: 0.65rem;
     overflow-wrap: anywhere;
+  }
+
+  .publish-panel {
+    left: 0.8rem;
+    right: 0.8rem;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    width: auto;
   }
 }
 
@@ -1847,8 +1978,8 @@ button:active {
   }
 
   .hero-copy h2 {
-    max-width: 9ch;
-    font-size: clamp(2.25rem, 13vw, 3.55rem);
+    max-width: 100%;
+    font-size: clamp(2rem, 11vw, 3.2rem);
   }
 
   .orbit {

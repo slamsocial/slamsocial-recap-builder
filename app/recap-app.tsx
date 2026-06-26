@@ -64,6 +64,7 @@ const recapsKey = "slamsocial-recaps-v4";
 const sessionKey = "slamsocial-recap-session";
 const tabs = ["Setup", "Metrics", "Platforms", "Posts", "Content", "Modules"];
 const loginPassword = "Admin1";
+const fallbackAppUrl = "https://recaps.slamsocial.biz";
 
 const platformCatalog = [
   { key: "tiktok", label: "TikTok", mark: "♪", className: "tiktok" },
@@ -168,6 +169,22 @@ function loadRecaps() {
 
 function saveRecaps(recaps: Recap[]) {
   window.localStorage.setItem(recapsKey, JSON.stringify(recaps));
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function preloadClientAssets() {
+  const imagePaths = ["/images/slamsocial-logo.png", "/images/campaign-content-collage.png"];
+  const imageLoads = imagePaths.map((src) => new Promise<void>((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve();
+    image.onerror = () => resolve();
+    image.src = src;
+  }));
+  const fontReady = "fonts" in document ? document.fonts.ready.then(() => undefined).catch(() => undefined) : Promise.resolve();
+  await Promise.allSettled([...imageLoads, fontReady]);
 }
 
 async function fetchRemoteRecaps(slug?: string) {
@@ -339,17 +356,24 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
   const [remoteEnabled, setRemoteEnabled] = useState(false);
   const [remoteReady, setRemoteReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Device draft");
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishCopied, setPublishCopied] = useState(false);
   const saveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const setupTimer = window.setTimeout(() => {
+    let cancelled = false;
+
+    async function boot() {
       const loaded = loadRecaps();
+      if (cancelled) return;
       setRecaps(loaded);
       const bySlug = initialSlug ? loaded.find((recap) => recap.slug === initialSlug) : null;
       setActiveId(bySlug?.id ?? loaded[0]?.id ?? sampleRecap.id);
       setLoggedIn(initialMode === "client" || window.sessionStorage.getItem(sessionKey) === "yes");
-      fetchRemoteRecaps(initialSlug)
+
+      const remoteLoad = fetchRemoteRecaps(initialSlug)
         .then((payload) => {
+          if (cancelled) return;
           setRemoteEnabled(payload.configured);
           if (payload.configured && payload.recaps.length) {
             setRecaps(payload.recaps);
@@ -360,15 +384,25 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
           }
         })
         .catch(() => {
+          if (cancelled) return;
           setRemoteEnabled(false);
           setSaveStatus("Device draft");
         })
-        .finally(() => setRemoteReady(true));
-    }, 0);
-    const loadingTimer = window.setTimeout(() => setLoading(false), 850);
+        .finally(() => {
+          if (!cancelled) setRemoteReady(true);
+        });
+
+      await Promise.allSettled([
+        Promise.race([remoteLoad, wait(initialMode === "client" ? 5200 : 3600)]),
+        preloadClientAssets(),
+        wait(initialMode === "client" ? 1800 : 1200),
+      ]);
+      if (!cancelled) setLoading(false);
+    }
+
+    boot();
     return () => {
-      window.clearTimeout(setupTimer);
-      window.clearTimeout(loadingTimer);
+      cancelled = true;
     };
   }, [initialMode, initialSlug]);
 
@@ -379,6 +413,7 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
   const activeRecap = recaps.find((recap) => recap.id === activeId) ?? recaps[0] ?? sampleRecap;
   const activePlatforms = useMemo(() => activeRecap.platforms.filter((platform) => platform.enabled), [activeRecap.platforms]);
   const previewUrl = `/p/${activeRecap.slug || "untitled"}`;
+  const publishUrl = `${typeof window !== "undefined" ? window.location.origin : fallbackAppUrl}${previewUrl}`;
 
   useEffect(() => {
     if (!remoteEnabled || !remoteReady || view === "client") return;
@@ -467,6 +502,26 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
     window.setTimeout(() => setCopied(false), 1500);
   }
 
+  async function publishRecap() {
+    if (remoteEnabled && view !== "client") {
+      setSaveStatus("Publishing...");
+      try {
+        const payload = await saveRemoteRecap(activeRecap);
+        setSaveStatus(payload.configured ? "Published" : "Device draft");
+      } catch {
+        setSaveStatus("Publish sync failed");
+      }
+    }
+    setPublishOpen(true);
+    try {
+      await navigator.clipboard.writeText(publishUrl);
+      setPublishCopied(true);
+      window.setTimeout(() => setPublishCopied(false), 1800);
+    } catch {
+      setPublishCopied(false);
+    }
+  }
+
   if (!loggedIn) {
     return (
       <main className="builder-shell gate-shell">
@@ -504,12 +559,24 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
               {editorHidden ? "Show control deck" : "Hide control deck"}
             </button>
             <a className="button-link" href={previewUrl} target="_blank">Preview client</a>
+            <button type="button" onClick={publishRecap}>{publishCopied ? "Link copied" : "Publish"}</button>
             <button type="button" onClick={copyJson}>{copied ? "Copied JSON" : "Copy JSON"}</button>
             <button type="button" onClick={() => window.print()}>Print / PDF</button>
             <span className={`sync-pill ${remoteEnabled ? "is-live" : ""}`}>{saveStatus}</span>
           </div>
         ) : null}
       </header>
+
+      {publishOpen && view !== "client" ? (
+        <div className="publish-panel" role="dialog" aria-label="Published client link">
+          <div>
+            <p className="mini-label">Published link</p>
+            <input readOnly value={publishUrl} onFocus={(event) => event.currentTarget.select()} />
+          </div>
+          <button type="button" onClick={publishRecap}>{publishCopied ? "Copied" : "Copy link"}</button>
+          <button className="publish-close" type="button" onClick={() => setPublishOpen(false)}>Close</button>
+        </div>
+      ) : null}
 
       {view === "dashboard" ? (
         <section className="dashboard">
