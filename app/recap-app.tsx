@@ -394,6 +394,55 @@ function LoadingScreen({ active }: { active: boolean }) {
   );
 }
 
+function ContentMediaCarousel({ item, mediaItems }: { item: ContentItem; mediaItems: ContentMedia[] }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+
+  function scrollToSlide(index: number) {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    scroller.scrollTo({ left: scroller.clientWidth * index, behavior: "smooth" });
+    setActiveIndex(index);
+  }
+
+  return (
+    <>
+      <div
+        className="media-carousel"
+        ref={scrollerRef}
+        aria-label={`${item.title} media`}
+        onScroll={(event) => {
+          const scroller = event.currentTarget;
+          const nextIndex = Math.round(scroller.scrollLeft / Math.max(scroller.clientWidth, 1));
+          setActiveIndex(Math.min(Math.max(nextIndex, 0), mediaItems.length - 1));
+        }}
+      >
+        {mediaItems.map((media, mediaIndex) => (
+          <div className="media-slide" key={`${media.name}-${mediaIndex}`}>
+            {media.type === "video" ? <video src={media.url} muted playsInline preload="metadata" controls /> : <img alt={media.name || item.title} src={media.url} />}
+          </div>
+        ))}
+      </div>
+      {mediaItems.length > 1 ? (
+        <div className="carousel-controls" aria-label={`${item.title} carousel position`}>
+          <span>{activeIndex + 1}/{mediaItems.length}</span>
+          <div>
+            {mediaItems.map((media, mediaIndex) => (
+              <button
+                aria-label={`View asset ${mediaIndex + 1}`}
+                className={mediaIndex === activeIndex ? "is-active" : ""}
+                key={`${media.name}-${mediaIndex}-dot`}
+                onClick={() => scrollToSlide(mediaIndex)}
+                type="button"
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 export default function RecapApp({ initialMode = "dashboard", initialSlug }: { initialMode?: "dashboard" | "client"; initialSlug?: string }) {
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -950,13 +999,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
                 <article className="content-card" key={`${item.title}-${index}`}>
                   <div className={`thumb media-thumb ${mediaItems.length > 1 ? "is-carousel" : ""}`} style={{ aspectRatio: item.aspect }}>
                     {mediaItems.length ? (
-                      <div className="media-carousel" aria-label={`${item.title} media`}>
-                        {mediaItems.map((media, mediaIndex) => (
-                          <div className="media-slide" key={`${media.name}-${mediaIndex}`}>
-                            {media.type === "video" ? <video src={media.url} muted playsInline preload="metadata" controls /> : <img alt={media.name || item.title} src={media.url} />}
-                          </div>
-                        ))}
-                      </div>
+                      <ContentMediaCarousel item={item} mediaItems={mediaItems} />
                     ) : <span>{String(index + 1).padStart(2, "0")}</span>}
                   </div>
                   {mediaItems.length > 1 ? <span className="carousel-count">{mediaItems.length} assets, swipe to view</span> : null}
@@ -980,9 +1023,11 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
             <i aria-hidden="true" />{pink58Open ? "Hide" : "View"} Pink58 topline recap
           </button>
           <div className="mobile-collapse-panel">
-            <div className="password-note"><span>Password</span><strong>{report.pink58Password}</strong></div>
-            <div className="pink-grid">
-              {report.pink58.map((metric) => <article key={metric.label}><span>{metric.label}</span><strong>{metric.value}</strong><p>{metric.note}</p></article>)}
+            <div className="mobile-collapse-inner">
+              <div className="password-note"><span>Password</span><strong>{report.pink58Password}</strong></div>
+              <div className="pink-grid">
+                {report.pink58.map((metric) => <article key={metric.label}><span>{metric.label}</span><strong>{metric.value}</strong><p>{metric.note}</p></article>)}
+              </div>
             </div>
           </div>
         </section>

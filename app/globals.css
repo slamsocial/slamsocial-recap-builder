@@ -730,6 +730,7 @@ button:active {
 }
 
 .section-head a::before,
+.expand-pill::before,
 .post-toolbar a::before,
 .mobile-collapse-trigger::before {
   content: "";
@@ -1025,22 +1026,33 @@ button:active {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
+  isolation: isolate;
+  animation: mobilePillPulse 3s ease-in-out infinite;
   transition:
     background 420ms cubic-bezier(0.16, 1, 0.3, 1),
     border-color 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.expand-pill::before {
+  z-index: -1;
+  animation: ctaSheen 3s ease-in-out infinite;
+}
+
 .post-toolbar a:hover::before,
-.section-head a:hover::before {
+.section-head a:hover::before,
+.expand-pill:hover::before {
   animation: ctaSheen 1.35s ease;
 }
 
 .expand-pill i {
+  position: relative;
+  z-index: 1;
   width: 0.62rem;
   height: 0.62rem;
   border-right: 2px solid currentColor;
   border-bottom: 2px solid currentColor;
   transform: rotate(45deg);
+  animation: mobileArrowNudge 2s ease-in-out infinite;
   transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1051,6 +1063,7 @@ button:active {
 
 .post-details.is-open .expand-pill i {
   transform: translateY(0.16rem) rotate(225deg);
+  animation: none;
 }
 
 .post-panel {
@@ -1201,6 +1214,7 @@ button:active {
 }
 
 .media-thumb {
+  position: relative;
   overflow: hidden;
   padding: 0;
 }
@@ -1220,8 +1234,12 @@ button:active {
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+}
+
+.media-carousel::-webkit-scrollbar {
+  display: none;
 }
 
 .media-slide {
@@ -1241,6 +1259,56 @@ button:active {
   font-size: 0.68rem;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.carousel-controls {
+  position: absolute;
+  right: 0.7rem;
+  bottom: 0.7rem;
+  left: 0.7rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 0.35rem 0.45rem 0.35rem 0.65rem;
+  background: rgba(4, 7, 13, 0.72);
+  backdrop-filter: blur(12px);
+}
+
+.carousel-controls span {
+  color: rgba(255, 255, 255, 0.78);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.carousel-controls div {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.carousel-controls button {
+  width: 0.48rem;
+  height: 0.48rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.38);
+  cursor: pointer;
+  transition:
+    width 260ms ease,
+    background 260ms ease,
+    box-shadow 260ms ease;
+}
+
+.carousel-controls button.is-active {
+  width: 1.25rem;
+  background: linear-gradient(90deg, var(--red), var(--blue));
+  box-shadow: 0 0 18px rgba(0, 159, 251, 0.34);
 }
 
 .content-card strong,
@@ -1355,8 +1423,8 @@ button:active {
 .recommendation-section h3 {
   max-width: 100%;
   font-size: clamp(2.4rem, 7vw, 6.5rem);
-  overflow-wrap: normal;
-  word-break: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .methodology {
@@ -1977,6 +2045,11 @@ button:active {
     overflow: hidden;
   }
 
+  .mobile-collapse-inner {
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .mobile-collapse.is-open .mobile-collapse-panel {
     grid-template-rows: 1fr;
     opacity: 1;
@@ -1984,6 +2057,10 @@ button:active {
   }
 
   .mobile-collapse.is-open .mobile-collapse-panel > * {
+    overflow: visible;
+  }
+
+  .mobile-collapse.is-open .mobile-collapse-inner {
     overflow: visible;
   }
 
@@ -2062,7 +2139,11 @@ button:active {
   }
 
   .recommendation-section h3 {
-    font-size: clamp(2.2rem, 13vw, 4.1rem);
+    max-width: 100%;
+    font-size: clamp(1.85rem, 9vw, 2.85rem);
+    line-height: 0.96;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .section-head h3,
@@ -2215,7 +2296,7 @@ button:active {
   }
 
   .recommendation-section h3 {
-    font-size: clamp(2rem, 11vw, 3.35rem);
+    font-size: clamp(1.75rem, 8.5vw, 2.6rem);
   }
 
   .recommendation-section p:last-child {
