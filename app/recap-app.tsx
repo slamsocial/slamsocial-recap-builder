@@ -23,12 +23,18 @@ type Upload = {
   saves: string;
   reposts: string;
 };
+type ContentMedia = {
+  url: string;
+  type: "image" | "video";
+  name: string;
+};
 type ContentItem = {
   title: string;
   format: string;
   platform: string;
   mediaUrl: string;
   mediaType: "image" | "video";
+  mediaItems?: ContentMedia[];
   aspect: "4 / 5" | "9 / 16" | "1 / 1" | "16 / 9";
 };
 type OrganicItem = { title: string; type: string; url: string };
@@ -217,6 +223,16 @@ function removeAt<T>(rows: T[], index: number) {
   return rows.filter((_, rowIndex) => rowIndex !== index);
 }
 
+function getContentMedia(item: ContentItem): ContentMedia[] {
+  if (item.mediaItems?.length) return item.mediaItems.slice(0, 12);
+  if (item.mediaUrl) return [{ url: item.mediaUrl, type: item.mediaType, name: item.title }];
+  return [];
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return <span className="mobile-stat" data-label={label}>{value}</span>;
+}
+
 function Field({
   label,
   value,
@@ -321,6 +337,42 @@ function FileField({ label, accept, onLoad }: { label: string; accept: string; o
           const reader = new FileReader();
           reader.onload = () => onLoad(String(reader.result), file.name, file.type);
           reader.readAsDataURL(file);
+        }}
+      />
+    </label>
+  );
+}
+
+function MultiFileField({
+  label,
+  accept,
+  maxFiles = 12,
+  onLoad,
+}: {
+  label: string;
+  accept: string;
+  maxFiles?: number;
+  onLoad: (files: ContentMedia[]) => void;
+}) {
+  return (
+    <label className="file-field">
+      <span>{label}</span>
+      <input
+        accept={accept}
+        multiple
+        type="file"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []).slice(0, maxFiles);
+          if (!files.length) return;
+          Promise.all(files.map((file) => new Promise<ContentMedia>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve({
+              url: String(reader.result),
+              type: file.type.startsWith("video") ? "video" : "image",
+              name: file.name,
+            });
+            reader.readAsDataURL(file);
+          }))).then(onLoad);
         }}
       />
     </label>
@@ -719,11 +771,32 @@ function Editor({
           {activeRecap.content.map((item, index) => (
             <div className="row-editor" key={`${item.title}-${index}`}>
               <button className="remove" onClick={() => patchRecap({ content: removeAt(activeRecap.content, index) })} type="button">Remove</button>
-              <FileField
+              <MultiFileField
                 accept="image/*,video/*"
-                label="Image or video"
-                onLoad={(mediaUrl, _fileName, fileType) => patchRecap({ content: updateAt(activeRecap.content, index, { mediaUrl, mediaType: fileType.startsWith("video") ? "video" : "image" }) })}
+                label="Images or videos, up to 12"
+                onLoad={(newMediaItems) => {
+                  const mediaItems = [...getContentMedia(item), ...newMediaItems].slice(0, 12);
+                  patchRecap({
+                    content: updateAt(activeRecap.content, index, {
+                      mediaItems,
+                      mediaUrl: mediaItems[0]?.url ?? "",
+                      mediaType: mediaItems[0]?.type ?? "image",
+                    }),
+                  });
+                }}
               />
+              {getContentMedia(item).length ? (
+                <div className="media-file-summary">
+                  <span>{getContentMedia(item).length} file{getContentMedia(item).length === 1 ? "" : "s"} in tile</span>
+                  <button
+                    className="remove"
+                    onClick={() => patchRecap({ content: updateAt(activeRecap.content, index, { mediaItems: [], mediaUrl: "", mediaType: "image" }) })}
+                    type="button"
+                  >
+                    Clear media
+                  </button>
+                </div>
+              ) : null}
               {(["title", "format", "platform"] as const).map((field) => (
                 <Field key={field} label={field} value={item[field]} onChange={(value) => patchRecap({ content: updateAt(activeRecap.content, index, { [field]: value }) })} />
               ))}
@@ -738,7 +811,7 @@ function Editor({
               </label>
             </div>
           ))}
-          <button className="add" onClick={() => patchRecap({ content: [...activeRecap.content, { title: "New content piece", format: "Format", platform: "Platform", mediaUrl: "", mediaType: "image", aspect: "4 / 5" }] })} type="button">Add content tile</button>
+          <button className="add" onClick={() => patchRecap({ content: [...activeRecap.content, { title: "New content piece", format: "Format", platform: "Platform", mediaUrl: "", mediaType: "image", mediaItems: [], aspect: "4 / 5" }] })} type="button">Add content tile</button>
         </div>
       ) : null}
 
@@ -759,6 +832,9 @@ function Editor({
 
 function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; activePlatforms: Platform[]; clientMode: boolean }) {
   const [postIndexOpen, setPostIndexOpen] = useState(false);
+  const [channelsOpen, setChannelsOpen] = useState(false);
+  const [contentOpen, setContentOpen] = useState(false);
+  const [pink58Open, setPink58Open] = useState(false);
 
   return (
     <section className={`recap-canvas ${clientMode ? "client-canvas" : ""}`} aria-label="Live campaign recap">
@@ -798,18 +874,28 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
         ))}
       </section>
 
-      <section className="report-section reveal-card">
+      <section className={`report-section reveal-card mobile-collapse ${channelsOpen ? "is-open" : ""}`}>
         <div className="section-head">
           <div><p className="section-kicker">Platform split</p><h3>Results by channel</h3></div>
           <span>{activePlatforms.length} active channels</span>
         </div>
-        <div className="platform-table">
-          <div className="platform-row table-head"><span>Platform</span><span>Posts</span><span>Views</span><span>Engagements</span><span>ER</span><span>CPM</span></div>
-          {activePlatforms.map((platform) => (
-            <div className="platform-row" key={platform.name}>
-              <strong><PlatformBadge platform={platform.name} /></strong><span>{platform.posts}</span><span>{platform.views}</span><span>{platform.engagements}</span><span>{platform.er}</span><span>{platform.cpm}</span>
-            </div>
-          ))}
+        <button className="mobile-collapse-trigger" type="button" onClick={() => setChannelsOpen((open) => !open)}>
+          <i aria-hidden="true" />{channelsOpen ? "Hide" : "View"} results by channel
+        </button>
+        <div className="mobile-collapse-panel">
+          <div className="platform-table">
+            <div className="platform-row table-head"><span>Platform</span><span>Posts</span><span>Views</span><span>Engagements</span><span>ER</span><span>CPM</span></div>
+            {activePlatforms.map((platform) => (
+              <div className="platform-row" key={platform.name}>
+                <strong><PlatformBadge platform={platform.name} /></strong>
+                <Stat label="Posts" value={platform.posts} />
+                <Stat label="Views" value={platform.views} />
+                <Stat label="Engagements" value={platform.engagements} />
+                <Stat label="ER" value={platform.er} />
+                <Stat label="CPM" value={platform.cpm} />
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -831,7 +917,14 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
                 </div>
                 {report.uploads.map((upload) => (
                   <a className="post-index-row" href={upload.url} key={`${upload.title}-${upload.url}`}>
-                    <strong>{upload.title}</strong><span><PlatformBadge compact platform={upload.platform} /></span><span>{upload.views}</span><span>{upload.likes}</span><span>{upload.comments}</span><span>{upload.shares}</span><span>{upload.saves}</span><span>{upload.reposts}</span>
+                    <strong>{upload.title}</strong>
+                    <span className="mobile-stat" data-label="Platform"><PlatformBadge compact platform={upload.platform} /></span>
+                    <Stat label="Views" value={upload.views} />
+                    <Stat label="Likes" value={upload.likes} />
+                    <Stat label="Comments" value={upload.comments} />
+                    <Stat label="Shares" value={upload.shares} />
+                    <Stat label="Saves" value={upload.saves} />
+                    <Stat label="Reposts" value={upload.reposts} />
                   </a>
                 ))}
               </div>
@@ -840,36 +933,57 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
         </div>
       </section>
 
-      <section className="report-section reveal-card">
+      <section className={`report-section reveal-card mobile-collapse ${contentOpen ? "is-open" : ""}`}>
         <div className="section-head">
           <div><p className="section-kicker">Creative</p><h3>Content used</h3></div>
           <a href={report.contentDriveUrl}>Content Drive</a>
         </div>
-        <div className="content-grid">
-          {report.content.map((item, index) => (
-            <article className="content-card" key={`${item.title}-${index}`}>
-              <div className="thumb media-thumb" style={{ aspectRatio: item.aspect }}>
-                {item.mediaUrl ? (
-                  item.mediaType === "video" ? <video src={item.mediaUrl} muted playsInline controls /> : <img alt={item.title} src={item.mediaUrl} />
-                ) : <span>{String(index + 1).padStart(2, "0")}</span>}
-              </div>
-              <strong>{item.title}</strong>
-              <p>{item.format}</p>
-              <small><PlatformBadge compact platform={item.platform} /></small>
-            </article>
-          ))}
+        <button className="mobile-collapse-trigger" type="button" onClick={() => setContentOpen((open) => !open)}>
+          <i aria-hidden="true" />{contentOpen ? "Hide" : "View"} content used
+        </button>
+        <div className="mobile-collapse-panel">
+          <div className="content-grid">
+            {report.content.map((item, index) => {
+              const mediaItems = getContentMedia(item);
+
+              return (
+                <article className="content-card" key={`${item.title}-${index}`}>
+                  <div className={`thumb media-thumb ${mediaItems.length > 1 ? "is-carousel" : ""}`} style={{ aspectRatio: item.aspect }}>
+                    {mediaItems.length ? (
+                      <div className="media-carousel" aria-label={`${item.title} media`}>
+                        {mediaItems.map((media, mediaIndex) => (
+                          <div className="media-slide" key={`${media.name}-${mediaIndex}`}>
+                            {media.type === "video" ? <video src={media.url} muted playsInline preload="metadata" controls /> : <img alt={media.name || item.title} src={media.url} />}
+                          </div>
+                        ))}
+                      </div>
+                    ) : <span>{String(index + 1).padStart(2, "0")}</span>}
+                  </div>
+                  {mediaItems.length > 1 ? <span className="carousel-count">{mediaItems.length} assets, swipe to view</span> : null}
+                  <strong>{item.title}</strong>
+                  <p>{item.format}</p>
+                  <small><PlatformBadge compact platform={item.platform} /></small>
+                </article>
+              );
+            })}
+          </div>
         </div>
       </section>
 
       {report.includePink58 ? (
-        <section className="report-section pink-section reveal-card">
+        <section className={`report-section pink-section reveal-card mobile-collapse ${pink58Open ? "is-open" : ""}`}>
           <div className="section-head">
             <div><p className="section-kicker">Pink58 clipping</p><h3>Topline tracking recap</h3></div>
             <a className="report-cta" href={report.pink58Url}><span>Full Pink58 report</span><i aria-hidden="true" /></a>
           </div>
-          <div className="password-note"><span>Password</span><strong>{report.pink58Password}</strong></div>
-          <div className="pink-grid">
-            {report.pink58.map((metric) => <article key={metric.label}><span>{metric.label}</span><strong>{metric.value}</strong><p>{metric.note}</p></article>)}
+          <button className="mobile-collapse-trigger" type="button" onClick={() => setPink58Open((open) => !open)}>
+            <i aria-hidden="true" />{pink58Open ? "Hide" : "View"} Pink58 topline recap
+          </button>
+          <div className="mobile-collapse-panel">
+            <div className="password-note"><span>Password</span><strong>{report.pink58Password}</strong></div>
+            <div className="pink-grid">
+              {report.pink58.map((metric) => <article key={metric.label}><span>{metric.label}</span><strong>{metric.value}</strong><p>{metric.note}</p></article>)}
+            </div>
           </div>
         </section>
       ) : null}

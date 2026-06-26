@@ -1,7 +1,8 @@
 type Metric = { label: string; value: string; note: string };
 type Platform = { name: string; enabled: boolean; posts: string; views: string; engagements: string; er: string; cpm: string };
 type Upload = { title: string; platform: string; url: string; views: string; likes: string; comments: string; shares: string; saves: string; reposts: string };
-type ContentItem = { title: string; format: string; platform: string; mediaUrl: string; mediaType: "image" | "video"; aspect: "4 / 5" | "9 / 16" | "1 / 1" | "16 / 9" };
+type ContentMedia = { url: string; type: "image" | "video"; name: string };
+type ContentItem = { title: string; format: string; platform: string; mediaUrl: string; mediaType: "image" | "video"; mediaItems?: ContentMedia[]; aspect: "4 / 5" | "9 / 16" | "1 / 1" | "16 / 9" };
 type OrganicItem = { title: string; type: string; url: string };
 type Recap = {
   id: string;
@@ -61,6 +62,40 @@ async function supabase(path: string, init: RequestInit = {}) {
   const text = await response.text();
   if (!text) return null;
   return JSON.parse(text);
+}
+
+function parseContentMedia(mediaUrl: string, fallbackType: "image" | "video", fallbackName: string) {
+  if (!mediaUrl) return [];
+
+  try {
+    const parsed = JSON.parse(mediaUrl) as { mediaItems?: ContentMedia[] };
+    if (Array.isArray(parsed.mediaItems)) {
+      return parsed.mediaItems
+        .filter((item) => item?.url)
+        .slice(0, 12)
+        .map((item) => ({
+          url: String(item.url),
+          type: item.type === "video" ? "video" as const : "image" as const,
+          name: String(item.name ?? fallbackName),
+        }));
+    }
+  } catch {
+    return [{ url: mediaUrl, type: fallbackType, name: fallbackName }];
+  }
+
+  return [{ url: mediaUrl, type: fallbackType, name: fallbackName }];
+}
+
+function encodeContentMedia(item: ContentItem) {
+  const mediaItems = item.mediaItems?.length
+    ? item.mediaItems.slice(0, 12)
+    : item.mediaUrl
+      ? [{ url: item.mediaUrl, type: item.mediaType, name: item.title }]
+      : [];
+
+  if (!mediaItems.length) return "";
+  if (mediaItems.length === 1) return mediaItems[0].url;
+  return JSON.stringify({ mediaItems });
 }
 
 function baseRow(recap: Recap) {
@@ -142,14 +177,20 @@ function toRecap(row: Record<string, unknown>, children: {
       saves: String(item.saves ?? "0"),
       reposts: String(item.reposts ?? "0"),
     })),
-    content: children.content.sort((a, b) => Number(a.sort_order) - Number(b.sort_order)).map((item) => ({
-      title: String(item.title ?? ""),
-      format: String(item.format ?? ""),
-      platform: String(item.platform ?? ""),
-      mediaUrl: String(item.media_url ?? ""),
-      mediaType: item.media_type === "video" ? "video" : "image",
-      aspect: ["4 / 5", "9 / 16", "1 / 1", "16 / 9"].includes(String(item.aspect)) ? String(item.aspect) as ContentItem["aspect"] : "4 / 5",
-    })),
+    content: children.content.sort((a, b) => Number(a.sort_order) - Number(b.sort_order)).map((item) => {
+      const mediaType = item.media_type === "video" ? "video" : "image";
+      const mediaItems = parseContentMedia(String(item.media_url ?? ""), mediaType, String(item.title ?? ""));
+
+      return {
+        title: String(item.title ?? ""),
+        format: String(item.format ?? ""),
+        platform: String(item.platform ?? ""),
+        mediaUrl: mediaItems[0]?.url ?? "",
+        mediaType: mediaItems[0]?.type ?? mediaType,
+        mediaItems,
+        aspect: ["4 / 5", "9 / 16", "1 / 1", "16 / 9"].includes(String(item.aspect)) ? String(item.aspect) as ContentItem["aspect"] : "4 / 5",
+      };
+    }),
     organic: children.organic.sort((a, b) => Number(a.sort_order) - Number(b.sort_order)).map((item) => ({
       title: String(item.title ?? ""),
       type: String(item.type ?? ""),
@@ -210,8 +251,8 @@ async function replaceChildren(recapId: string, recap: Recap) {
     title: item.title,
     format: item.format,
     platform: item.platform,
-    media_url: item.mediaUrl,
-    media_type: item.mediaType,
+    media_url: encodeContentMedia(item),
+    media_type: item.mediaItems?.[0]?.type ?? item.mediaType,
     aspect: item.aspect,
   }));
   const organic = recap.organic.map((item, index) => ({ recap_id: recapId, sort_order: index, ...item }));

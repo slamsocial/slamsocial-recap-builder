@@ -375,6 +375,24 @@ button:active {
   font-size: 0.82rem;
 }
 
+.media-file-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  padding: 0.65rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.media-file-summary span {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .row-editor,
 .nested {
   display: grid;
@@ -682,7 +700,9 @@ button:active {
 
 .section-head > span,
 .section-head a {
+  position: relative;
   flex: none;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 0.55rem 0.8rem;
@@ -707,6 +727,17 @@ button:active {
   background: linear-gradient(90deg, transparent, rgba(0, 159, 251, 0.24), transparent);
   transform: translateX(-110%);
   animation: ctaSheen 2.4s ease-in-out infinite;
+}
+
+.section-head a::before,
+.post-toolbar a::before,
+.mobile-collapse-trigger::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  transform: translateX(-115%);
+  pointer-events: none;
 }
 
 .report-cta span,
@@ -924,6 +955,15 @@ button:active {
   font-size: 1rem;
 }
 
+.mobile-stat {
+  min-width: 0;
+}
+
+.mobile-stat::before {
+  content: "";
+  display: none;
+}
+
 .table-head {
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.48);
@@ -969,7 +1009,9 @@ button:active {
 
 .expand-pill,
 .post-toolbar a {
+  position: relative;
   flex: none;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 0.55rem 0.8rem;
@@ -986,6 +1028,11 @@ button:active {
   transition:
     background 420ms cubic-bezier(0.16, 1, 0.3, 1),
     border-color 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.post-toolbar a:hover::before,
+.section-head a:hover::before {
+  animation: ctaSheen 1.35s ease;
 }
 
 .expand-pill i {
@@ -1023,6 +1070,14 @@ button:active {
 .post-panel-inner {
   overflow: hidden;
   min-height: 0;
+}
+
+.mobile-collapse-trigger {
+  display: none;
+}
+
+.mobile-collapse-panel {
+  display: block;
 }
 
 .post-toolbar {
@@ -1147,6 +1202,7 @@ button:active {
 
 .media-thumb {
   overflow: hidden;
+  padding: 0;
 }
 
 .media-thumb img,
@@ -1155,6 +1211,36 @@ button:active {
   height: 100%;
   border-radius: 0.65rem;
   object-fit: cover;
+}
+
+.media-carousel {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.media-slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  height: 100%;
+  scroll-snap-align: start;
+}
+
+.carousel-count {
+  display: inline-flex;
+  margin: -0.25rem 0 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 0.35rem 0.55rem;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .content-card strong,
@@ -1251,6 +1337,7 @@ button:active {
 
 .recommendation-section {
   display: block;
+  overflow: hidden;
   background:
     linear-gradient(90deg, rgba(245, 33, 33, 0.18), rgba(0, 159, 251, 0.14)),
     rgba(12, 13, 20, 0.86);
@@ -1262,6 +1349,7 @@ button:active {
   color: rgba(255, 255, 255, 0.76);
   font-size: clamp(1.2rem, 2.3vw, 2rem);
   line-height: 1.34;
+  overflow-wrap: anywhere;
 }
 
 .recommendation-section h3 {
@@ -1686,6 +1774,22 @@ button:active {
   58%, 100% { transform: translateX(140%); }
 }
 
+@keyframes mobilePillPulse {
+  0%, 100% {
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 0 0 rgba(0, 159, 251, 0);
+  }
+  50% {
+    border-color: rgba(0, 159, 251, 0.5);
+    box-shadow: 0 0 24px rgba(0, 159, 251, 0.18);
+  }
+}
+
+@keyframes mobileArrowNudge {
+  0%, 100% { transform: translateX(0) rotate(45deg); }
+  50% { transform: translateX(0.18rem) rotate(45deg); }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .reveal-card {
     animation-timeline: view();
@@ -1815,6 +1919,80 @@ button:active {
     overflow: visible;
   }
 
+  .mobile-collapse-trigger {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    width: 100%;
+    min-height: 3.4rem;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.035);
+    color: rgba(255, 255, 255, 0.82);
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    animation: mobilePillPulse 2.6s ease-in-out infinite;
+  }
+
+  .mobile-collapse-trigger::before,
+  .section-head a::before,
+  .post-toolbar a::before {
+    animation: ctaSheen 2.8s ease-in-out infinite;
+  }
+
+  .mobile-collapse-trigger i {
+    position: relative;
+    z-index: 1;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    animation: mobileArrowNudge 1.8s ease-in-out infinite;
+  }
+
+  .mobile-collapse.is-open .mobile-collapse-trigger i {
+    transform: translateY(0.12rem) rotate(225deg);
+    animation: none;
+  }
+
+  .mobile-collapse-panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    margin-top: 0;
+    transition:
+      grid-template-rows 560ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 360ms ease,
+      margin-top 560ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .mobile-collapse-panel > * {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .mobile-collapse.is-open .mobile-collapse-panel {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    margin-top: 1rem;
+  }
+
+  .mobile-collapse.is-open .mobile-collapse-panel > * {
+    overflow: visible;
+  }
+
+  .section-head a,
+  .post-toolbar a,
+  .expand-pill {
+    animation: mobilePillPulse 2.8s ease-in-out infinite;
+  }
+
   .platform-row,
   .post-index-row {
     min-width: 0;
@@ -1842,6 +2020,22 @@ button:active {
     overflow-wrap: anywhere;
   }
 
+  .mobile-stat {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .mobile-stat::before {
+    content: attr(data-label);
+    display: block;
+    color: rgba(255, 255, 255, 0.42);
+    font-family: "Inter", sans-serif;
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
   .platform-label {
     white-space: normal;
   }
@@ -1862,6 +2056,9 @@ button:active {
 
   .recommendation-section p:last-child {
     font-size: 1.18rem;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .recommendation-section h3 {
@@ -1998,7 +2195,8 @@ button:active {
   .section-head > span,
   .section-head a,
   .expand-pill,
-  .post-toolbar a {
+  .post-toolbar a,
+  .mobile-collapse-trigger {
     width: 100%;
     justify-content: center;
     text-align: center;
