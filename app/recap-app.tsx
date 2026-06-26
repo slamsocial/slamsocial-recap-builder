@@ -65,6 +65,21 @@ const sessionKey = "slamsocial-recap-session";
 const tabs = ["Setup", "Metrics", "Platforms", "Posts", "Content", "Modules"];
 const loginPassword = "Admin1";
 
+const platformCatalog = [
+  { key: "tiktok", label: "TikTok", mark: "♪", className: "tiktok" },
+  { key: "instagram", label: "Instagram", mark: "◎", className: "instagram" },
+  { key: "reels", label: "Reels", mark: "▶", className: "reels" },
+  { key: "youtube", label: "YouTube", mark: "▶", className: "youtube" },
+  { key: "facebook", label: "Facebook", mark: "f", className: "facebook" },
+  { key: "twitter", label: "X", mark: "X", className: "x" },
+  { key: "x", label: "X", mark: "X", className: "x" },
+  { key: "linkedin", label: "LinkedIn", mark: "in", className: "linkedin" },
+  { key: "pinterest", label: "Pinterest", mark: "P", className: "pinterest" },
+  { key: "snapchat", label: "Snapchat", mark: "S", className: "snapchat" },
+  { key: "twitch", label: "Twitch", mark: "T", className: "twitch" },
+  { key: "discord", label: "Discord", mark: "D", className: "discord" },
+];
+
 const sampleRecap: Recap = {
   id: "minions",
   slug: "minions",
@@ -192,6 +207,35 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
       <span>{label}</span>
       <i aria-hidden="true" />
     </button>
+  );
+}
+
+function getPlatformMarks(platform: string) {
+  const normalized = platform.toLowerCase();
+  const matches = platformCatalog.filter((item) => {
+    if (item.key === "x") return normalized === "x" || /\bx\b/.test(normalized);
+    return normalized.includes(item.key);
+  });
+
+  if (matches.length) {
+    return matches.filter((item, index, list) => list.findIndex((match) => match.className === item.className) === index);
+  }
+
+  return [{ key: "fallback", label: platform, mark: platform.trim().charAt(0).toUpperCase() || "•", className: "fallback" }];
+}
+
+function PlatformBadge({ platform, compact = false }: { platform: string; compact?: boolean }) {
+  const marks = getPlatformMarks(platform);
+
+  return (
+    <span className={`platform-badge ${compact ? "is-compact" : ""}`}>
+      <span className="platform-logo-stack" aria-hidden="true">
+        {marks.slice(0, 3).map((item) => (
+          <span className={`platform-logo logo-${item.className}`} key={`${item.key}-${item.label}`}>{item.mark}</span>
+        ))}
+      </span>
+      <span className="platform-label">{platform}</span>
+    </span>
   );
 }
 
@@ -508,6 +552,7 @@ function Editor({
           {activeRecap.platforms.map((platform, index) => (
             <div className="row-editor" key={`${platform.name}-${index}`}>
               <div className="split">
+                <PlatformBadge compact platform={platform.name} />
                 <Toggle checked={platform.enabled} label="Show" onChange={() => patchRecap({ platforms: updateAt(activeRecap.platforms, index, { enabled: !platform.enabled }) })} />
                 <button className="remove" onClick={() => patchRecap({ platforms: removeAt(activeRecap.platforms, index) })} type="button">Remove</button>
               </div>
@@ -627,7 +672,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
           <div className="platform-row table-head"><span>Platform</span><span>Posts</span><span>Views</span><span>Engagements</span><span>ER</span><span>CPM</span></div>
           {activePlatforms.map((platform) => (
             <div className="platform-row" key={platform.name}>
-              <strong>{platform.name}</strong><span>{platform.posts}</span><span>{platform.views}</span><span>{platform.engagements}</span><span>{platform.er}</span><span>{platform.cpm}</span>
+              <strong><PlatformBadge platform={platform.name} /></strong><span>{platform.posts}</span><span>{platform.views}</span><span>{platform.engagements}</span><span>{platform.er}</span><span>{platform.cpm}</span>
             </div>
           ))}
         </div>
@@ -651,7 +696,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
                 </div>
                 {report.uploads.map((upload) => (
                   <a className="post-index-row" href={upload.url} key={`${upload.title}-${upload.url}`}>
-                    <strong>{upload.title}</strong><span>{upload.platform}</span><span>{upload.views}</span><span>{upload.likes}</span><span>{upload.comments}</span><span>{upload.shares}</span><span>{upload.saves}</span><span>{upload.reposts}</span>
+                    <strong>{upload.title}</strong><span><PlatformBadge compact platform={upload.platform} /></span><span>{upload.views}</span><span>{upload.likes}</span><span>{upload.comments}</span><span>{upload.shares}</span><span>{upload.saves}</span><span>{upload.reposts}</span>
                   </a>
                 ))}
               </div>
@@ -675,7 +720,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
               </div>
               <strong>{item.title}</strong>
               <p>{item.format}</p>
-              <small>{item.platform}</small>
+              <small><PlatformBadge compact platform={item.platform} /></small>
             </article>
           ))}
         </div>

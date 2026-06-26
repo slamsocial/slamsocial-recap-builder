@@ -746,9 +746,123 @@ button:active {
   border-radius: 0.9rem;
 }
 
+.platform-badge {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  gap: 0.65rem;
+  color: var(--paper);
+}
+
+.platform-logo-stack {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.platform-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--paper);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+  font-family: "Inter", sans-serif;
+  font-size: 0.76rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.platform-logo + .platform-logo {
+  margin-left: -0.45rem;
+}
+
+.platform-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-badge.is-compact {
+  gap: 0.45rem;
+}
+
+.platform-badge.is-compact .platform-logo {
+  width: 1.4rem;
+  height: 1.4rem;
+  font-size: 0.64rem;
+}
+
+.platform-badge.is-compact .platform-logo + .platform-logo {
+  margin-left: -0.35rem;
+}
+
+.platform-badge.is-compact .platform-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.logo-tiktok {
+  background: #06070a;
+  color: #fff;
+  text-shadow: -1px 0 #00f2ea, 1px 0 #ff0050;
+}
+
+.logo-instagram,
+.logo-reels {
+  background: linear-gradient(135deg, #feda75, #fa7e1e 28%, #d62976 54%, #962fbf 74%, #4f5bd5);
+}
+
+.logo-youtube {
+  background: #ff0033;
+}
+
+.logo-x {
+  background: #050609;
+}
+
+.logo-facebook {
+  background: #1877f2;
+  font-size: 0.95rem;
+}
+
+.logo-linkedin {
+  background: #0a66c2;
+  font-size: 0.62rem;
+}
+
+.logo-pinterest {
+  background: #e60023;
+}
+
+.logo-snapchat {
+  background: #fffc00;
+  color: #111;
+}
+
+.logo-twitch {
+  background: #9146ff;
+}
+
+.logo-discord {
+  background: #5865f2;
+}
+
+.logo-fallback {
+  background: linear-gradient(135deg, rgba(245, 33, 33, 0.88), rgba(0, 159, 251, 0.82));
+}
+
 .platform-row {
   display: grid;
-  grid-template-columns: 1.2fr repeat(5, minmax(5rem, 1fr));
+  grid-template-columns: minmax(10rem, 1.28fr) repeat(5, minmax(5rem, 1fr));
   gap: 0.8rem;
   align-items: center;
   padding: 0.9rem 1rem;
@@ -763,6 +877,7 @@ button:active {
 }
 
 .platform-row strong {
+  min-width: 0;
   color: var(--paper);
   font-family: "Inter", sans-serif;
   font-size: 1rem;
