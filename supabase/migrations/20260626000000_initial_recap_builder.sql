@@ -93,12 +93,10 @@ create index if not exists recap_organic_items_recap_sort_idx on public.recap_or
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
-as $$
-begin
+as 'begin
   new.updated_at = now();
   return new;
-end;
-$$;
+end;';
 
 drop trigger if exists recaps_set_updated_at on public.recaps;
 create trigger recaps_set_updated_at
