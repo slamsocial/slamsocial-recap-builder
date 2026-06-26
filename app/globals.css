@@ -140,6 +140,27 @@ img {
   justify-content: flex-end;
 }
 
+.sync-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 0 0.8rem;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sync-pill.is-live {
+  border-color: rgba(0, 159, 251, 0.4);
+  background: rgba(0, 159, 251, 0.1);
+  color: rgba(255, 255, 255, 0.82);
+}
+
 .top-actions button,
 .button-link,
 .add,

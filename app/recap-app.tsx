@@ -170,6 +170,28 @@ function saveRecaps(recaps: Recap[]) {
   window.localStorage.setItem(recapsKey, JSON.stringify(recaps));
 }
 
+async function fetchRemoteRecaps(slug?: string) {
+  const path = slug ? `/api/recaps?slug=${encodeURIComponent(slug)}` : "/api/recaps";
+  const response = await fetch(path);
+  if (!response.ok) throw new Error("Unable to load Supabase recaps");
+  return response.json() as Promise<{ configured: boolean; recaps: Recap[] }>;
+}
+
+async function saveRemoteRecap(recap: Recap) {
+  const response = await fetch("/api/recaps", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ recap }),
+  });
+  if (!response.ok) throw new Error("Unable to save Supabase recap");
+  return response.json() as Promise<{ configured: boolean; recap?: Recap }>;
+}
+
+async function deleteRemoteRecap(recap: Recap) {
+  const response = await fetch(`/api/recaps?id=${encodeURIComponent(recap.id)}&slug=${encodeURIComponent(recap.slug)}`, { method: "DELETE" });
+  if (!response.ok) throw new Error("Unable to delete Supabase recap");
+}
+
 function updateAt<T>(rows: T[], index: number, patch: Partial<T>) {
   return rows.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row);
 }
@@ -314,6 +336,10 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
   const [activeTab, setActiveTab] = useState("Setup");
   const [editorHidden, setEditorHidden] = useState(initialMode === "client");
   const [copied, setCopied] = useState(false);
+  const [remoteEnabled, setRemoteEnabled] = useState(false);
+  const [remoteReady, setRemoteReady] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("Device draft");
+  const saveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const setupTimer = window.setTimeout(() => {
@@ -322,6 +348,22 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
       const bySlug = initialSlug ? loaded.find((recap) => recap.slug === initialSlug) : null;
       setActiveId(bySlug?.id ?? loaded[0]?.id ?? sampleRecap.id);
       setLoggedIn(initialMode === "client" || window.sessionStorage.getItem(sessionKey) === "yes");
+      fetchRemoteRecaps(initialSlug)
+        .then((payload) => {
+          setRemoteEnabled(payload.configured);
+          if (payload.configured && payload.recaps.length) {
+            setRecaps(payload.recaps);
+            setActiveId(payload.recaps[0].id);
+            setSaveStatus("Synced to Supabase");
+          } else if (payload.configured) {
+            setSaveStatus("Ready to sync");
+          }
+        })
+        .catch(() => {
+          setRemoteEnabled(false);
+          setSaveStatus("Device draft");
+        })
+        .finally(() => setRemoteReady(true));
     }, 0);
     const loadingTimer = window.setTimeout(() => setLoading(false), 850);
     return () => {
@@ -337,6 +379,27 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
   const activeRecap = recaps.find((recap) => recap.id === activeId) ?? recaps[0] ?? sampleRecap;
   const activePlatforms = useMemo(() => activeRecap.platforms.filter((platform) => platform.enabled), [activeRecap.platforms]);
   const previewUrl = `/p/${activeRecap.slug || "untitled"}`;
+
+  useEffect(() => {
+    if (!remoteEnabled || !remoteReady || view === "client") return;
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      setSaveStatus("Saving...");
+      saveRemoteRecap(activeRecap)
+        .then((payload) => {
+          if (payload.recap && payload.recap.id !== activeRecap.id) {
+            setRecaps((current) => current.map((recap) => recap.id === activeRecap.id ? payload.recap as Recap : recap));
+            setActiveId(payload.recap.id);
+          }
+          setSaveStatus(payload.configured ? "Synced to Supabase" : "Device draft");
+        })
+        .catch(() => setSaveStatus("Sync failed"));
+    }, 700);
+
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+  }, [activeRecap, remoteEnabled, remoteReady, view]);
 
   function patchRecap(patch: Partial<Recap>) {
     setRecaps((current) =>
@@ -379,6 +442,10 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
   }
 
   function deleteRecap(id: string) {
+    const deleted = recaps.find((recap) => recap.id === id);
+    if (deleted && remoteEnabled) {
+      deleteRemoteRecap(deleted).catch(() => setSaveStatus("Delete sync failed"));
+    }
     const remaining = recaps.filter((recap) => recap.id !== id);
     const next = remaining.length ? remaining : [sampleRecap];
     setRecaps(next);
@@ -439,6 +506,7 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
             <a className="button-link" href={previewUrl} target="_blank">Preview client</a>
             <button type="button" onClick={copyJson}>{copied ? "Copied JSON" : "Copy JSON"}</button>
             <button type="button" onClick={() => window.print()}>Print / PDF</button>
+            <span className={`sync-pill ${remoteEnabled ? "is-live" : ""}`}>{saveStatus}</span>
           </div>
         ) : null}
       </header>
