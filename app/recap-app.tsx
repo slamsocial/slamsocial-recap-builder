@@ -836,7 +836,7 @@ function Editor({
       {activeTab === "Metrics" ? (
         <div className="editor-stack">
           {activeRecap.metrics.map((metric, index) => (
-            <div className="row-editor" key={`${metric.label}-${index}`}>
+            <div className="row-editor" key={`metric-${index}`}>
               <button className="remove" onClick={() => patchRecap({ metrics: removeAt(activeRecap.metrics, index) })} type="button">Remove</button>
               <Field label="Label" value={metric.label} onChange={(label) => patchRecap({ metrics: updateAt(activeRecap.metrics, index, { label }) })} />
               <Field label="Value" value={metric.value} onChange={(value) => patchRecap({ metrics: updateAt(activeRecap.metrics, index, { value }) })} />
@@ -868,7 +868,7 @@ function Editor({
       {activeTab === "Posts" ? (
         <div className="editor-stack">
           {activeRecap.uploads.map((upload, index) => (
-            <div className="row-editor" key={`${upload.title}-${index}`}>
+            <div className="row-editor" key={`upload-${index}`}>
               <button className="remove" onClick={() => patchRecap({ uploads: removeAt(activeRecap.uploads, index) })} type="button">Remove</button>
               {(["title", "platform", "url", "views", "likes", "comments", "shares", "saves", "reposts"] as const).map((field) => (
                 <Field key={field} label={field} value={upload[field]} onChange={(value) => patchRecap({ uploads: updateAt(activeRecap.uploads, index, { [field]: value }) })} />
@@ -882,7 +882,7 @@ function Editor({
       {activeTab === "Content" ? (
         <div className="editor-stack">
           {activeRecap.content.map((item, index) => (
-            <div className="row-editor" key={`${item.title}-${index}`}>
+            <div className="row-editor" key={`content-${index}`}>
               <button className="remove" onClick={() => patchRecap({ content: removeAt(activeRecap.content, index) })} type="button">Remove</button>
               <MultiFileField
                 accept="image/*,video/*"
@@ -935,6 +935,34 @@ function Editor({
           <Toggle checked={activeRecap.includeRecommendations} label="Show recommendations" onChange={() => patchRecap({ includeRecommendations: !activeRecap.includeRecommendations })} />
           <Field label="Pink58 recap URL" value={activeRecap.pink58Url} onChange={(pink58Url) => patchRecap({ pink58Url })} />
           <Field label="Pink58 password" value={activeRecap.pink58Password} onChange={(pink58Password) => patchRecap({ pink58Password })} />
+          <div className="nested">
+            <div className="nested-heading">
+              <span>Pink58 topline metrics</span>
+              <button className="add" onClick={() => patchRecap({ pink58: [...activeRecap.pink58, { label: "New Pink58 metric", value: "0", note: "Add context" }] })} type="button">Add metric</button>
+            </div>
+            {activeRecap.pink58.map((metric, index) => (
+              <div className="row-editor" key={`pink58-${index}`}>
+                <button className="remove" onClick={() => patchRecap({ pink58: removeAt(activeRecap.pink58, index) })} type="button">Remove</button>
+                <Field label="Label" value={metric.label} onChange={(label) => patchRecap({ pink58: updateAt(activeRecap.pink58, index, { label }) })} />
+                <Field label="Value" value={metric.value} onChange={(value) => patchRecap({ pink58: updateAt(activeRecap.pink58, index, { value }) })} />
+                <Field label="Note" value={metric.note} onChange={(note) => patchRecap({ pink58: updateAt(activeRecap.pink58, index, { note }) })} />
+              </div>
+            ))}
+          </div>
+          <div className="nested">
+            <div className="nested-heading">
+              <span>Organic activity tiles</span>
+              <button className="add" onClick={() => patchRecap({ organic: [...activeRecap.organic, { type: "Organic social post", title: "New organic activity", url: "https://" }] })} type="button">Add organic tile</button>
+            </div>
+            {activeRecap.organic.map((item, index) => (
+              <div className="row-editor" key={`organic-${index}`}>
+                <button className="remove" onClick={() => patchRecap({ organic: removeAt(activeRecap.organic, index) })} type="button">Remove</button>
+                <Field label="Type" value={item.type} onChange={(type) => patchRecap({ organic: updateAt(activeRecap.organic, index, { type }) })} />
+                <Field label="Title" value={item.title} onChange={(title) => patchRecap({ organic: updateAt(activeRecap.organic, index, { title }) })} />
+                <Field label="URL" value={item.url} onChange={(url) => patchRecap({ organic: updateAt(activeRecap.organic, index, { url }) })} />
+              </div>
+            ))}
+          </div>
           <Field label="Recommendations" value={activeRecap.recommendations} multiline onChange={(recommendations) => patchRecap({ recommendations })} />
           <Field label="Methodology note" value={activeRecap.methodology} multiline onChange={(methodology) => patchRecap({ methodology })} />
         </div>
