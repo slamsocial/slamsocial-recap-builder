@@ -73,16 +73,16 @@ const loginPassword = "Admin1";
 const fallbackAppUrl = "https://recaps.slamsocial.biz";
 
 const platformCatalog = [
-  { key: "tiktok", label: "TikTok", mark: "♪", className: "tiktok" },
-  { key: "instagram", label: "Instagram", mark: "◎", className: "instagram" },
-  { key: "reels", label: "Reels", mark: "▶", className: "reels" },
-  { key: "youtube", label: "YouTube", mark: "▶", className: "youtube" },
-  { key: "facebook", label: "Facebook", mark: "f", className: "facebook" },
-  { key: "twitter", label: "X", mark: "X", className: "x" },
-  { key: "x", label: "X", mark: "X", className: "x" },
+  { key: "tiktok", label: "TikTok", mark: "♪", className: "tiktok", logo: "/images/platforms/tiktok.webp" },
+  { key: "instagram", label: "Instagram", mark: "◎", className: "instagram", logo: "/images/platforms/instagram.svg" },
+  { key: "reels", label: "Reels", mark: "◎", className: "reels", logo: "/images/platforms/instagram.svg" },
+  { key: "youtube", label: "YouTube", mark: "▶", className: "youtube", logo: "/images/platforms/youtube.webp" },
+  { key: "facebook", label: "Facebook", mark: "f", className: "facebook", logo: "/images/platforms/facebook.png" },
+  { key: "twitter", label: "X", mark: "X", className: "x", logo: "/images/platforms/x.png" },
+  { key: "x", label: "X", mark: "X", className: "x", logo: "/images/platforms/x.png" },
   { key: "linkedin", label: "LinkedIn", mark: "in", className: "linkedin" },
   { key: "pinterest", label: "Pinterest", mark: "P", className: "pinterest" },
-  { key: "snapchat", label: "Snapchat", mark: "S", className: "snapchat" },
+  { key: "snapchat", label: "Snapchat", mark: "S", className: "snapchat", logo: "/images/platforms/snapchat.png" },
   { key: "twitch", label: "Twitch", mark: "T", className: "twitch" },
   { key: "discord", label: "Discord", mark: "D", className: "discord" },
 ];
@@ -331,7 +331,9 @@ function PlatformBadge({ platform, compact = false }: { platform: string; compac
     <span className={`platform-badge ${compact ? "is-compact" : ""}`}>
       <span className="platform-logo-stack" aria-hidden="true">
         {marks.slice(0, 3).map((item) => (
-          <span className={`platform-logo logo-${item.className}`} key={`${item.key}-${item.label}`}>{item.mark}</span>
+          <span className={`platform-logo logo-${item.className}`} key={`${item.key}-${item.label}`}>
+            {"logo" in item && item.logo ? <img alt="" src={item.logo} /> : item.mark}
+          </span>
         ))}
       </span>
       <span className="platform-label">{platform}</span>
@@ -832,7 +834,7 @@ function Editor({
       {activeTab === "Platforms" ? (
         <div className="editor-stack">
           {activeRecap.platforms.map((platform, index) => (
-            <div className="row-editor" key={`${platform.name}-${index}`}>
+            <div className="row-editor" key={`platform-${index}`}>
               <div className="split">
                 <PlatformBadge compact platform={platform.name} />
                 <Toggle checked={platform.enabled} label="Show" onChange={() => patchRecap({ platforms: updateAt(activeRecap.platforms, index, { enabled: !platform.enabled }) })} />
