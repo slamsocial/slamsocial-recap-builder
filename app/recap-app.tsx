@@ -506,6 +506,7 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
   const [saveStatus, setSaveStatus] = useState("Device draft");
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishCopied, setPublishCopied] = useState(false);
+  const [deleteCandidate, setDeleteCandidate] = useState<Recap | null>(null);
   const saveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -634,6 +635,7 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
     const next = remaining.length ? remaining : [sampleRecap];
     setRecaps(next);
     setActiveId(next[0].id);
+    setDeleteCandidate(null);
   }
 
   function login() {
@@ -727,6 +729,20 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
         </div>
       ) : null}
 
+      {deleteCandidate && view !== "client" ? (
+        <div className="confirm-panel" role="dialog" aria-modal="true" aria-label="Confirm recap deletion">
+          <div>
+            <p className="mini-label">Delete recap?</p>
+            <strong>{deleteCandidate.campaign}</strong>
+            <span>{`/p/${deleteCandidate.slug}`}</span>
+          </div>
+          <div className="confirm-actions">
+            <button type="button" onClick={() => setDeleteCandidate(null)}>Cancel</button>
+            <button className="danger" type="button" onClick={() => deleteRecap(deleteCandidate.id)}>Delete forever</button>
+          </div>
+        </div>
+      ) : null}
+
       {view === "dashboard" ? (
         <section className="dashboard">
           <div className="dashboard-hero">
@@ -745,7 +761,7 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
                   <button type="button" onClick={() => { setActiveId(recap.id); setView("builder"); setEditorHidden(false); }}>Edit</button>
                   <a href={`/p/${recap.slug}`} rel="noopener noreferrer" target="_blank">Preview</a>
                   <button type="button" onClick={() => duplicateRecap(recap)}>Duplicate</button>
-                  <button type="button" onClick={() => deleteRecap(recap.id)}>Delete</button>
+                  <button type="button" onClick={() => setDeleteCandidate(recap)}>Delete</button>
                 </div>
               </article>
             ))}

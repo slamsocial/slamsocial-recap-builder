@@ -1755,6 +1755,66 @@ button:active {
   background: rgba(255, 255, 255, 0.07);
 }
 
+.confirm-panel {
+  position: fixed;
+  right: clamp(0.8rem, 3vw, 1.4rem);
+  bottom: clamp(0.8rem, 3vw, 1.4rem);
+  z-index: 45;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  width: min(640px, calc(100vw - 1.6rem));
+  border: 1px solid rgba(245, 33, 33, 0.34);
+  border-radius: 1rem;
+  padding: 1rem;
+  background:
+    linear-gradient(135deg, rgba(245, 33, 33, 0.14), rgba(10, 16, 29, 0.94) 48%),
+    rgba(10, 16, 29, 0.94);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(18px);
+}
+
+.confirm-panel strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--paper);
+  font-size: 1rem;
+}
+
+.confirm-panel span {
+  display: block;
+  margin-top: 0.2rem;
+  color: rgba(255, 255, 255, 0.52);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+}
+
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: flex-end;
+}
+
+.confirm-actions button {
+  min-height: 2.55rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 0 0.9rem;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--paper);
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.confirm-actions button.danger {
+  border-color: rgba(245, 33, 33, 0.46);
+  background: linear-gradient(90deg, rgba(245, 33, 33, 0.95), rgba(163, 37, 250, 0.82));
+}
+
 .slam-ambient-loader {
   position: absolute;
   inset: -40%;
@@ -2217,6 +2277,22 @@ button:active {
     grid-template-columns: 1fr;
     align-items: stretch;
     width: auto;
+  }
+
+  .confirm-panel {
+    left: 0.8rem;
+    right: 0.8rem;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    width: auto;
+  }
+
+  .confirm-actions {
+    justify-content: stretch;
+  }
+
+  .confirm-actions button {
+    flex: 1 1 10rem;
   }
 }
 
