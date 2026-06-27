@@ -162,14 +162,14 @@ function slugify(value: string) {
 }
 
 function loadRecaps() {
-  if (typeof window === "undefined") return [sampleRecap];
+  if (typeof window === "undefined") return [normalizeRecap(sampleRecap)];
   const saved = window.localStorage.getItem(recapsKey);
-  if (!saved) return [sampleRecap];
+  if (!saved) return [normalizeRecap(sampleRecap)];
   try {
     const parsed = JSON.parse(saved) as Recap[];
-    return parsed.length ? parsed : [sampleRecap];
+    return parsed.length ? parsed.map(normalizeRecap) : [normalizeRecap(sampleRecap)];
   } catch {
-    return [sampleRecap];
+    return [normalizeRecap(sampleRecap)];
   }
 }
 
@@ -227,6 +227,31 @@ function getContentMedia(item: ContentItem): ContentMedia[] {
   if (item.mediaItems?.length) return item.mediaItems.slice(0, 12);
   if (item.mediaUrl) return [{ url: item.mediaUrl, type: item.mediaType, name: item.title }];
   return [];
+}
+
+function uniqueBy<T>(items: T[], getKey: (item: T) => string) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = (getKey(item).trim() || JSON.stringify(item)).toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeRecap(recap: Recap): Recap {
+  return {
+    ...recap,
+    metrics: uniqueBy(recap.metrics, (metric) => metric.label),
+    platforms: uniqueBy(recap.platforms, (platform) => platform.name),
+    uploads: uniqueBy(recap.uploads, (upload) => `${upload.url || upload.title}-${upload.platform}`),
+    content: uniqueBy(recap.content, (item) => {
+      const mediaKey = getContentMedia(item).map((media) => media.url || media.name).join("|");
+      return `${item.title}-${item.format}-${item.platform}-${mediaKey}`;
+    }),
+    organic: uniqueBy(recap.organic, (item) => `${item.type}-${item.title}-${item.url}`),
+    pink58: uniqueBy(recap.pink58, (metric) => metric.label),
+  };
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -477,8 +502,9 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
           if (cancelled) return;
           setRemoteEnabled(payload.configured);
           if (payload.configured && payload.recaps.length) {
-            setRecaps(payload.recaps);
-            setActiveId(payload.recaps[0].id);
+            const remoteRecaps = payload.recaps.map(normalizeRecap);
+            setRecaps(remoteRecaps);
+            setActiveId(remoteRecaps[0].id);
             setSaveStatus("Synced to Supabase");
           } else if (payload.configured) {
             setSaveStatus("Ready to sync");
@@ -884,6 +910,15 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
   const [channelsOpen, setChannelsOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
   const [pink58Open, setPink58Open] = useState(false);
+  const metrics = useMemo(() => uniqueBy(report.metrics, (metric) => metric.label), [report.metrics]);
+  const platforms = useMemo(() => uniqueBy(activePlatforms, (platform) => platform.name), [activePlatforms]);
+  const uploads = useMemo(() => uniqueBy(report.uploads, (upload) => `${upload.url || upload.title}-${upload.platform}`), [report.uploads]);
+  const content = useMemo(() => uniqueBy(report.content, (item) => {
+    const mediaKey = getContentMedia(item).map((media) => media.url || media.name).join("|");
+    return `${item.title}-${item.format}-${item.platform}-${mediaKey}`;
+  }), [report.content]);
+  const pink58 = useMemo(() => uniqueBy(report.pink58, (metric) => metric.label), [report.pink58]);
+  const organic = useMemo(() => uniqueBy(report.organic, (item) => `${item.type}-${item.title}-${item.url}`), [report.organic]);
 
   return (
     <section className={`recap-canvas ${clientMode ? "client-canvas" : ""}`} aria-label="Live campaign recap">
@@ -914,7 +949,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
       </section>
 
       <section className="metric-grid reveal-card">
-        {report.metrics.map((metric) => (
+        {metrics.map((metric) => (
           <article className="metric-card" key={metric.label}>
             <p>{metric.label}</p>
             <strong><AnimatedMetricValue value={metric.value} /></strong>
@@ -926,7 +961,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
       <section className={`report-section reveal-card mobile-collapse ${channelsOpen ? "is-open" : ""}`}>
         <div className="section-head">
           <div><p className="section-kicker">Platform split</p><h3>Results by channel</h3></div>
-          <span>{activePlatforms.length} active channels</span>
+          <span>{platforms.length} active channels</span>
         </div>
         <button className="mobile-collapse-trigger" type="button" onClick={() => setChannelsOpen((open) => !open)}>
           <i aria-hidden="true" />{channelsOpen ? "Hide" : "View"} results by channel
@@ -934,7 +969,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
         <div className="mobile-collapse-panel">
           <div className="platform-table">
             <div className="platform-row table-head"><span>Platform</span><span>Posts</span><span>Views</span><span>Engagements</span><span>ER</span><span>CPM</span></div>
-            {activePlatforms.map((platform) => (
+            {platforms.map((platform) => (
               <div className="platform-row" key={platform.name}>
                 <strong><PlatformBadge platform={platform.name} /></strong>
                 <Stat label="Posts" value={platform.posts} />
@@ -952,7 +987,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
         <div className={`post-details ${postIndexOpen ? "is-open" : ""}`}>
           <button className="post-summary" type="button" onClick={() => setPostIndexOpen((open) => !open)}>
             <span><p className="section-kicker">Uploads</p><h3>Live post index</h3></span>
-            <span className="expand-pill"><i aria-hidden="true" />{postIndexOpen ? "Hide" : "View"} {report.uploads.length} links</span>
+            <span className="expand-pill"><i aria-hidden="true" />{postIndexOpen ? "Hide" : "View"} {uploads.length} links</span>
           </button>
           <div className="post-panel">
             <div className="post-panel-inner">
@@ -964,7 +999,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
                 <div className="post-index-row table-head">
                   <span>Post</span><span>Platform</span><span>Views</span><span>Likes</span><span>Comments</span><span>Shares</span><span>Saves</span><span>Reposts</span>
                 </div>
-                {report.uploads.map((upload) => (
+                {uploads.map((upload) => (
                   <a className="post-index-row" href={upload.url} key={`${upload.title}-${upload.url}`}>
                     <strong>{upload.title}</strong>
                     <span className="mobile-stat" data-label="Platform"><PlatformBadge compact platform={upload.platform} /></span>
@@ -992,7 +1027,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
         </button>
         <div className="mobile-collapse-panel">
           <div className="content-grid">
-            {report.content.map((item, index) => {
+            {content.map((item, index) => {
               const mediaItems = getContentMedia(item);
 
               return (
@@ -1026,7 +1061,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
             <div className="mobile-collapse-inner">
               <div className="password-note"><span>Password</span><strong>{report.pink58Password}</strong></div>
               <div className="pink-grid">
-                {report.pink58.map((metric) => <article key={metric.label}><span>{metric.label}</span><strong>{metric.value}</strong><p>{metric.note}</p></article>)}
+                {pink58.map((metric) => <article key={metric.label}><span>{metric.label}</span><strong>{metric.value}</strong><p>{metric.note}</p></article>)}
               </div>
             </div>
           </div>
@@ -1037,7 +1072,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
         <section className="report-section reveal-card">
           <div className="section-head"><div><p className="section-kicker">Organic lift</p><h3>Earned activity off the back of the campaign</h3></div></div>
           <div className="organic-list">
-            {report.organic.map((item) => <a href={item.url} key={`${item.title}-${item.url}`}><span>{item.type}</span><strong>{item.title}</strong></a>)}
+            {organic.map((item) => <a href={item.url} key={`${item.title}-${item.url}`}><span>{item.type}</span><strong>{item.title}</strong></a>)}
           </div>
         </section>
       ) : null}
