@@ -1194,6 +1194,34 @@ button:active {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.organic-list a.has-media {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+}
+
+.organic-media {
+  display: block;
+  overflow: hidden;
+  width: 100%;
+  margin-top: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  background: rgba(0, 0, 0, 0.24);
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  text-transform: none;
+}
+
+.organic-media img,
+.organic-media video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .link-list strong,
 .organic-list strong {
   display: block;

@@ -28,6 +28,7 @@ type ContentMedia = {
   type: "image" | "video";
   name: string;
 };
+type MediaAspect = "4 / 5" | "9 / 16" | "1 / 1" | "16 / 9";
 type ContentItem = {
   title: string;
   format: string;
@@ -35,9 +36,17 @@ type ContentItem = {
   mediaUrl: string;
   mediaType: "image" | "video";
   mediaItems?: ContentMedia[];
-  aspect: "4 / 5" | "9 / 16" | "1 / 1" | "16 / 9";
+  aspect: MediaAspect;
 };
-type OrganicItem = { title: string; type: string; url: string };
+type OrganicItem = {
+  title: string;
+  type: string;
+  url: string;
+  mediaUrl?: string;
+  mediaType?: "image" | "video";
+  mediaName?: string;
+  aspect?: MediaAspect;
+};
 type Recap = {
   id: string;
   slug: string;
@@ -223,6 +232,10 @@ function removeAt<T>(rows: T[], index: number) {
   return rows.filter((_, rowIndex) => rowIndex !== index);
 }
 
+function getOrganicAspect(item: OrganicItem): MediaAspect {
+  return item.aspect ?? "4 / 5";
+}
+
 function getContentMedia(item: ContentItem): ContentMedia[] {
   if (item.mediaItems?.length) return item.mediaItems.slice(0, 12);
   if (item.mediaUrl) return [{ url: item.mediaUrl, type: item.mediaType, name: item.title }];
@@ -249,7 +262,7 @@ function normalizeRecap(recap: Recap): Recap {
       const mediaKey = getContentMedia(item).map((media) => media.url || media.name).join("|");
       return `${item.title}-${item.format}-${item.platform}-${mediaKey}`;
     }),
-    organic: uniqueBy(recap.organic, (item) => `${item.type}-${item.title}-${item.url}`),
+    organic: uniqueBy(recap.organic, (item) => `${item.type}-${item.title}-${item.url}-${item.mediaUrl ?? ""}`),
     pink58: uniqueBy(recap.pink58, (metric) => metric.label),
   };
 }
@@ -952,11 +965,43 @@ function Editor({
           <div className="nested">
             <div className="nested-heading">
               <span>Organic activity tiles</span>
-              <button className="add" onClick={() => patchRecap({ organic: [...activeRecap.organic, { type: "Organic social post", title: "New organic activity", url: "https://" }] })} type="button">Add organic tile</button>
+              <button className="add" onClick={() => patchRecap({ organic: [...activeRecap.organic, { type: "Organic social post", title: "New organic activity", url: "https://", mediaUrl: "", mediaType: "image", mediaName: "", aspect: "4 / 5" }] })} type="button">Add organic tile</button>
             </div>
             {activeRecap.organic.map((item, index) => (
               <div className="row-editor" key={`organic-${index}`}>
                 <button className="remove" onClick={() => patchRecap({ organic: removeAt(activeRecap.organic, index) })} type="button">Remove</button>
+                <FileField
+                  accept="image/*,video/*"
+                  label="Optional image or video"
+                  onLoad={(mediaUrl, mediaName, fileType) => patchRecap({
+                    organic: updateAt(activeRecap.organic, index, {
+                      mediaUrl,
+                      mediaName,
+                      mediaType: fileType.startsWith("video") ? "video" : "image",
+                    }),
+                  })}
+                />
+                {item.mediaUrl ? (
+                  <div className="media-file-summary">
+                    <span>{item.mediaName || "Organic media attached"}</span>
+                    <button
+                      className="remove"
+                      onClick={() => patchRecap({ organic: updateAt(activeRecap.organic, index, { mediaUrl: "", mediaType: "image", mediaName: "" }) })}
+                      type="button"
+                    >
+                      Clear media
+                    </button>
+                  </div>
+                ) : null}
+                <label className="field">
+                  <span>Media size</span>
+                  <select value={getOrganicAspect(item)} onChange={(event) => patchRecap({ organic: updateAt(activeRecap.organic, index, { aspect: event.target.value as MediaAspect }) })}>
+                    <option value="4 / 5">4:5 portrait</option>
+                    <option value="9 / 16">9:16 vertical</option>
+                    <option value="1 / 1">1:1 square</option>
+                    <option value="16 / 9">16:9 landscape</option>
+                  </select>
+                </label>
                 <Field label="Type" value={item.type} onChange={(type) => patchRecap({ organic: updateAt(activeRecap.organic, index, { type }) })} />
                 <Field label="Title" value={item.title} onChange={(title) => patchRecap({ organic: updateAt(activeRecap.organic, index, { title }) })} />
                 <Field label="URL" value={item.url} onChange={(url) => patchRecap({ organic: updateAt(activeRecap.organic, index, { url }) })} />
@@ -1138,7 +1183,17 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
         <section className="report-section reveal-card">
           <div className="section-head"><div><p className="section-kicker">Organic lift</p><h3>Earned activity off the back of the campaign</h3></div></div>
           <div className="organic-list">
-            {organic.map((item) => <a href={item.url} key={`${item.title}-${item.url}`} rel="noopener noreferrer" target="_blank"><span>{item.type}</span><strong>{item.title}</strong></a>)}
+            {organic.map((item) => (
+              <a className={item.mediaUrl ? "has-media" : ""} href={item.url} key={`${item.title}-${item.url}`} rel="noopener noreferrer" target="_blank">
+                {item.mediaUrl ? (
+                  <span className="organic-media" style={{ aspectRatio: getOrganicAspect(item) }}>
+                    {item.mediaType === "video" ? <video muted playsInline preload="metadata" src={item.mediaUrl} /> : <img alt="" src={item.mediaUrl} />}
+                  </span>
+                ) : null}
+                <span>{item.type}</span>
+                <strong>{item.title}</strong>
+              </a>
+            ))}
           </div>
         </section>
       ) : null}
