@@ -263,17 +263,19 @@ function toggleAnchoredCollapse(
   setOpen: (update: (open: boolean) => boolean) => void,
 ) {
   const trigger = event.currentTarget;
-  const previousTop = trigger.getBoundingClientRect().top;
+  const anchorTop = trigger.getBoundingClientRect().top;
+  const startedAt = performance.now();
+  const stabilizeForMs = 680;
   setOpen((open) => !open);
   trigger.blur();
 
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => {
-      const nextTop = trigger.getBoundingClientRect().top;
-      const offset = nextTop - previousTop;
-      if (Math.abs(offset) > 1) window.scrollBy({ top: offset, behavior: "instant" });
-    });
-  });
+  function stabilize(now: number) {
+    const offset = trigger.getBoundingClientRect().top - anchorTop;
+    if (Math.abs(offset) > 0.5) window.scrollBy({ top: offset, behavior: "auto" });
+    if (now - startedAt < stabilizeForMs) window.requestAnimationFrame(stabilize);
+  }
+
+  window.requestAnimationFrame(stabilize);
 }
 
 function Field({
@@ -703,7 +705,7 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
             <button type="button" onClick={() => setEditorHidden((value) => !value)}>
               {editorHidden ? "Show control deck" : "Hide control deck"}
             </button>
-            <a className="button-link" href={previewUrl} target="_blank">Preview client</a>
+            <a className="button-link" href={previewUrl} rel="noopener noreferrer" target="_blank">Preview client</a>
             <button type="button" onClick={publishRecap}>{publishCopied ? "Link copied" : "Publish"}</button>
             <button type="button" onClick={copyJson}>{copied ? "Copied JSON" : "Copy JSON"}</button>
             <button type="button" onClick={() => window.print()}>Print / PDF</button>
@@ -739,7 +741,7 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
                 </div>
                 <div className="row-actions">
                   <button type="button" onClick={() => { setActiveId(recap.id); setView("builder"); setEditorHidden(false); }}>Edit</button>
-                  <a href={`/p/${recap.slug}`} target="_blank">Preview</a>
+                  <a href={`/p/${recap.slug}`} rel="noopener noreferrer" target="_blank">Preview</a>
                   <button type="button" onClick={() => duplicateRecap(recap)}>Duplicate</button>
                   <button type="button" onClick={() => deleteRecap(recap.id)}>Delete</button>
                 </div>
@@ -1010,15 +1012,15 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
           <div className="post-panel">
             <div className="post-panel-inner">
               <div className="post-toolbar">
-                <a href={report.insightDriveUrl}>Insights Drive</a>
-                <a href={report.contentDriveUrl}>Content Drive</a>
+                <a href={report.insightDriveUrl} rel="noopener noreferrer" target="_blank">Insights Drive</a>
+                <a href={report.contentDriveUrl} rel="noopener noreferrer" target="_blank">Content Drive</a>
               </div>
               <div className="post-index-table">
                 <div className="post-index-row table-head">
                   <span>Post</span><span>Platform</span><span>Views</span><span>Likes</span><span>Comments</span><span>Shares</span><span>Saves</span><span>Reposts</span>
                 </div>
                 {uploads.map((upload) => (
-                  <a className="post-index-row" href={upload.url} key={`${upload.title}-${upload.url}`}>
+                  <a className="post-index-row" href={upload.url} key={`${upload.title}-${upload.url}`} rel="noopener noreferrer" target="_blank">
                     <strong>{upload.title}</strong>
                     <span className="mobile-stat" data-label="Platform"><PlatformBadge compact platform={upload.platform} /></span>
                     <Stat label="Views" value={upload.views} />
@@ -1038,7 +1040,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
       <section className={`report-section reveal-card mobile-collapse ${contentOpen ? "is-open" : ""}`}>
         <div className="section-head">
           <div><p className="section-kicker">Creative</p><h3>Content used</h3></div>
-          <a href={report.contentDriveUrl}>Content Drive</a>
+          <a href={report.contentDriveUrl} rel="noopener noreferrer" target="_blank">Content Drive</a>
         </div>
         <button className="mobile-collapse-trigger" type="button" onClick={(event) => toggleAnchoredCollapse(event, setContentOpen)}>
           <i aria-hidden="true" />{contentOpen ? "Hide" : "View"} content used
@@ -1070,7 +1072,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
         <section className={`report-section pink-section reveal-card mobile-collapse ${pink58Open ? "is-open" : ""}`}>
           <div className="section-head">
             <div><p className="section-kicker">Pink58 clipping</p><h3>Topline tracking recap</h3></div>
-            <a className="report-cta" href={report.pink58Url}><span>Full Pink58 report</span><i aria-hidden="true" /></a>
+            <a className="report-cta" href={report.pink58Url} rel="noopener noreferrer" target="_blank"><span>Full Pink58 report</span><i aria-hidden="true" /></a>
           </div>
           <button className="mobile-collapse-trigger" type="button" onClick={(event) => toggleAnchoredCollapse(event, setPink58Open)}>
             <i aria-hidden="true" />{pink58Open ? "Hide" : "View"} Pink58 topline recap
@@ -1090,7 +1092,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
         <section className="report-section reveal-card">
           <div className="section-head"><div><p className="section-kicker">Organic lift</p><h3>Earned activity off the back of the campaign</h3></div></div>
           <div className="organic-list">
-            {organic.map((item) => <a href={item.url} key={`${item.title}-${item.url}`}><span>{item.type}</span><strong>{item.title}</strong></a>)}
+            {organic.map((item) => <a href={item.url} key={`${item.title}-${item.url}`} rel="noopener noreferrer" target="_blank"><span>{item.type}</span><strong>{item.title}</strong></a>)}
           </div>
         </section>
       ) : null}
