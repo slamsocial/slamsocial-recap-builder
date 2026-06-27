@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 
 type Metric = { label: string; value: string; note: string };
 type Platform = {
@@ -256,6 +256,24 @@ function normalizeRecap(recap: Recap): Recap {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return <span className="mobile-stat" data-label={label}>{value}</span>;
+}
+
+function toggleAnchoredCollapse(
+  event: MouseEvent<HTMLButtonElement>,
+  setOpen: (update: (open: boolean) => boolean) => void,
+) {
+  const trigger = event.currentTarget;
+  const previousTop = trigger.getBoundingClientRect().top;
+  setOpen((open) => !open);
+  trigger.blur();
+
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      const nextTop = trigger.getBoundingClientRect().top;
+      const offset = nextTop - previousTop;
+      if (Math.abs(offset) > 1) window.scrollBy({ top: offset, behavior: "instant" });
+    });
+  });
 }
 
 function Field({
@@ -963,7 +981,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
           <div><p className="section-kicker">Platform split</p><h3>Results by channel</h3></div>
           <span>{platforms.length} active channels</span>
         </div>
-        <button className="mobile-collapse-trigger" type="button" onClick={() => setChannelsOpen((open) => !open)}>
+        <button className="mobile-collapse-trigger" type="button" onClick={(event) => toggleAnchoredCollapse(event, setChannelsOpen)}>
           <i aria-hidden="true" />{channelsOpen ? "Hide" : "View"} results by channel
         </button>
         <div className="mobile-collapse-panel">
@@ -985,7 +1003,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
 
       <section className="report-section reveal-card">
         <div className={`post-details ${postIndexOpen ? "is-open" : ""}`}>
-          <button className="post-summary" type="button" onClick={() => setPostIndexOpen((open) => !open)}>
+          <button className="post-summary" type="button" onClick={(event) => toggleAnchoredCollapse(event, setPostIndexOpen)}>
             <span><p className="section-kicker">Uploads</p><h3>Live post index</h3></span>
             <span className="expand-pill"><i aria-hidden="true" />{postIndexOpen ? "Hide" : "View"} {uploads.length} links</span>
           </button>
@@ -1022,7 +1040,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
           <div><p className="section-kicker">Creative</p><h3>Content used</h3></div>
           <a href={report.contentDriveUrl}>Content Drive</a>
         </div>
-        <button className="mobile-collapse-trigger" type="button" onClick={() => setContentOpen((open) => !open)}>
+        <button className="mobile-collapse-trigger" type="button" onClick={(event) => toggleAnchoredCollapse(event, setContentOpen)}>
           <i aria-hidden="true" />{contentOpen ? "Hide" : "View"} content used
         </button>
         <div className="mobile-collapse-panel">
@@ -1054,7 +1072,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
             <div><p className="section-kicker">Pink58 clipping</p><h3>Topline tracking recap</h3></div>
             <a className="report-cta" href={report.pink58Url}><span>Full Pink58 report</span><i aria-hidden="true" /></a>
           </div>
-          <button className="mobile-collapse-trigger" type="button" onClick={() => setPink58Open((open) => !open)}>
+          <button className="mobile-collapse-trigger" type="button" onClick={(event) => toggleAnchoredCollapse(event, setPink58Open)}>
             <i aria-hidden="true" />{pink58Open ? "Hide" : "View"} Pink58 topline recap
           </button>
           <div className="mobile-collapse-panel">
