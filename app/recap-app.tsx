@@ -70,6 +70,7 @@ type Recap = {
   content: ContentItem[];
   organic: OrganicItem[];
   pink58: Metric[];
+  campaignNotes: string;
   recommendations: string;
   methodology: string;
   updatedAt: string;
@@ -80,6 +81,8 @@ const sessionKey = "slamsocial-recap-session";
 const tabs = ["Setup", "Metrics", "Platforms", "Posts", "Content", "Modules"];
 const loginPassword = "Admin1";
 const fallbackAppUrl = "https://recaps.slamsocial.biz";
+const maxEmbeddedFileBytes = 2.5 * 1024 * 1024;
+const maxEmbeddedBatchBytes = 8 * 1024 * 1024;
 
 const platformCatalog = [
   { key: "tiktok", label: "TikTok", mark: "♪", className: "tiktok", logo: "/images/platforms/tiktok.webp" },
@@ -150,6 +153,8 @@ const sampleRecap: Recap = {
     { label: "Shares", value: "54K", note: "Share actions" },
     { label: "Engagement rate", value: "6.8%", note: "Across tracked posts" },
   ],
+  campaignNotes:
+    "Add any campaign context the client should know here: creator response, sentiment, timing notes, whitelisting learnings, or follow-up opportunities.",
   recommendations:
     "Keep the creator remix format. Brief for more save-worthy carousel assets. Reserve paid amplification for posts with early share velocity.",
   methodology:
@@ -183,7 +188,15 @@ function loadRecaps() {
 }
 
 function saveRecaps(recaps: Recap[]) {
-  window.localStorage.setItem(recapsKey, JSON.stringify(recaps));
+  try {
+    window.localStorage.setItem(recapsKey, JSON.stringify(recaps));
+  } catch {
+    window.localStorage.setItem(recapsKey, JSON.stringify(recaps.map((recap) => ({
+      ...recap,
+      content: recap.content.map((item) => ({ ...item, mediaUrl: "", mediaItems: [] })),
+      organic: recap.organic.map((item) => ({ ...item, mediaUrl: "" })),
+    }))));
+  }
 }
 
 function wait(ms: number) {
@@ -232,6 +245,10 @@ function removeAt<T>(rows: T[], index: number) {
   return rows.filter((_, rowIndex) => rowIndex !== index);
 }
 
+function formatBytes(bytes: number) {
+  return `${(bytes / (1024 * 1024)).toFixed(bytes >= 1024 * 1024 ? 1 : 2)}MB`;
+}
+
 function getOrganicAspect(item: OrganicItem): MediaAspect {
   return item.aspect ?? "4 / 5";
 }
@@ -264,6 +281,7 @@ function normalizeRecap(recap: Recap): Recap {
     }),
     organic: uniqueBy(recap.organic, (item) => `${item.type}-${item.title}-${item.url}-${item.mediaUrl ?? ""}`),
     pink58: uniqueBy(recap.pink58, (metric) => metric.label),
+    campaignNotes: recap.campaignNotes ?? "",
   };
 }
 
@@ -385,6 +403,8 @@ function AnimatedMetricValue({ value }: { value: string }) {
 }
 
 function FileField({ label, accept, onLoad }: { label: string; accept: string; onLoad: (dataUrl: string, fileName: string, fileType: string) => void }) {
+  const [error, setError] = useState("");
+
   return (
     <label className="file-field">
       <span>{label}</span>
@@ -394,11 +414,18 @@ function FileField({ label, accept, onLoad }: { label: string; accept: string; o
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (!file) return;
+          if (file.size > maxEmbeddedFileBytes) {
+            setError(`File is too large for embedded preview. Keep it under ${formatBytes(maxEmbeddedFileBytes)}.`);
+            event.currentTarget.value = "";
+            return;
+          }
+          setError("");
           const reader = new FileReader();
           reader.onload = () => onLoad(String(reader.result), file.name, file.type);
           reader.readAsDataURL(file);
         }}
       />
+      {error ? <em>{error}</em> : null}
     </label>
   );
 }
@@ -414,6 +441,8 @@ function MultiFileField({
   maxFiles?: number;
   onLoad: (files: ContentMedia[]) => void;
 }) {
+  const [error, setError] = useState("");
+
   return (
     <label className="file-field">
       <span>{label}</span>
@@ -424,6 +453,19 @@ function MultiFileField({
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []).slice(0, maxFiles);
           if (!files.length) return;
+          const oversized = files.find((file) => file.size > maxEmbeddedFileBytes);
+          if (oversized) {
+            setError(`${oversized.name} is too large. Keep each asset under ${formatBytes(maxEmbeddedFileBytes)}.`);
+            event.currentTarget.value = "";
+            return;
+          }
+          const totalBytes = files.reduce((total, file) => total + file.size, 0);
+          if (totalBytes > maxEmbeddedBatchBytes) {
+            setError(`This upload is ${formatBytes(totalBytes)}. Keep each carousel batch under ${formatBytes(maxEmbeddedBatchBytes)}.`);
+            event.currentTarget.value = "";
+            return;
+          }
+          setError("");
           Promise.all(files.map((file) => new Promise<ContentMedia>((resolve) => {
             const reader = new FileReader();
             reader.onload = () => resolve({
@@ -435,6 +477,7 @@ function MultiFileField({
           }))).then(onLoad);
         }}
       />
+      {error ? <em>{error}</em> : null}
     </label>
   );
 }
@@ -1008,6 +1051,7 @@ function Editor({
               </div>
             ))}
           </div>
+          <Field label="Campaign notes" value={activeRecap.campaignNotes ?? ""} multiline onChange={(campaignNotes) => patchRecap({ campaignNotes })} />
           <Field label="Recommendations" value={activeRecap.recommendations} multiline onChange={(recommendations) => patchRecap({ recommendations })} />
           <Field label="Methodology note" value={activeRecap.methodology} multiline onChange={(methodology) => patchRecap({ methodology })} />
         </div>
@@ -1195,6 +1239,14 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
               </a>
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {report.campaignNotes?.trim() ? (
+        <section className="report-section notes-section reveal-card">
+          <p className="section-kicker">Campaign notes</p>
+          <h3>Notes</h3>
+          <p>{report.campaignNotes}</p>
         </section>
       ) : null}
 

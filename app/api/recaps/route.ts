@@ -27,6 +27,7 @@ type Recap = {
   content: ContentItem[];
   organic: OrganicItem[];
   pink58: Metric[];
+  campaignNotes: string;
   recommendations: string;
   methodology: string;
   updatedAt: string;
@@ -34,6 +35,7 @@ type Recap = {
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function configured() {
   return Boolean(supabaseUrl && serviceRoleKey);
@@ -98,8 +100,8 @@ function encodeContentMedia(item: ContentItem) {
   return JSON.stringify({ mediaItems });
 }
 
-function baseRow(recap: Recap) {
-  return {
+function baseRow(recap: Recap, includeCampaignNotes = true) {
+  const row: Record<string, unknown> = {
     slug: recap.slug,
     client: recap.client,
     campaign: recap.campaign,
@@ -119,6 +121,9 @@ function baseRow(recap: Recap) {
     methodology: recap.methodology,
     published: true,
   };
+
+  if (includeCampaignNotes) row.campaign_notes = recap.campaignNotes ?? "";
+  return row;
 }
 
 function toRecap(row: Record<string, unknown>, children: {
@@ -196,10 +201,25 @@ function toRecap(row: Record<string, unknown>, children: {
       type: String(item.type ?? ""),
       url: String(item.url ?? ""),
     })),
+    campaignNotes: String(row.campaign_notes ?? ""),
     recommendations: String(row.recommendations ?? ""),
     methodology: String(row.methodology ?? ""),
     updatedAt: String(row.updated_at ?? ""),
   };
+}
+
+async function saveRecapRow(recap: Recap, includeCampaignNotes = true) {
+  const row = baseRow(recap, includeCampaignNotes);
+  const options = {
+    method: recap.id && uuidPattern.test(recap.id) ? "PATCH" : "POST",
+    headers: headers(recap.id && uuidPattern.test(recap.id) ? "return=representation" : "resolution=merge-duplicates,return=representation"),
+    body: JSON.stringify(row),
+  };
+  const path = recap.id && uuidPattern.test(recap.id)
+    ? `recaps?id=eq.${encodeURIComponent(recap.id)}`
+    : "recaps?on_conflict=slug";
+  const rows = await supabase(path, options) as Record<string, unknown>[];
+  return rows[0];
 }
 
 async function loadChildren(recapId: string) {
@@ -283,11 +303,16 @@ export async function POST(request: Request) {
 
   try {
     const { recap } = await request.json() as { recap: Recap };
-    const [row] = await supabase("recaps?on_conflict=slug", {
-      method: "POST",
-      headers: headers("resolution=merge-duplicates,return=representation"),
-      body: JSON.stringify(baseRow(recap)),
-    }) as Record<string, unknown>[];
+    let row: Record<string, unknown>;
+    try {
+      row = await saveRecapRow(recap);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (!message.includes("campaign_notes")) throw error;
+      row = await saveRecapRow(recap, false);
+    }
+
+    if (!row?.id) throw new Error("Unable to save recap row");
 
     await replaceChildren(String(row.id), recap);
     const [saved] = await loadRecaps(String(row.slug));
