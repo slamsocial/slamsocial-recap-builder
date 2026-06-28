@@ -278,7 +278,11 @@ async function uploadMediaFile(file: File, folder: string): Promise<ContentMedia
 
   if (!uploadResponse.ok) {
     const message = await uploadResponse.text();
-    throw new Error(message || "Unable to upload media.");
+    throw new Error(
+      message.includes("Payload too large")
+        ? `Supabase rejected this file as too large. Try a file under ${formatBytes(maxUploadFileBytes)} after the latest deploy finishes.`
+        : message || "Unable to upload media.",
+    );
   }
 
   return {

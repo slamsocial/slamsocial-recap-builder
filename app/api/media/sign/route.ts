@@ -27,22 +27,37 @@ async function ensureBucket() {
   const bucketResponse = await fetch(`${supabaseUrl}/storage/v1/bucket/${bucket}`, {
     headers: storageHeaders(),
   });
-  if (bucketResponse.ok) return;
 
-  const createResponse = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
-    method: "POST",
+  if (!bucketResponse.ok) {
+    const createResponse = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
+      method: "POST",
+      headers: storageHeaders(),
+      body: JSON.stringify({
+        id: bucket,
+        name: bucket,
+        public: true,
+        file_size_limit: maxUploadFileBytes,
+      }),
+    });
+
+    if (!createResponse.ok && createResponse.status !== 409) {
+      const message = await createResponse.text();
+      throw new Error(message || "Unable to create recap media bucket");
+    }
+  }
+
+  const updateResponse = await fetch(`${supabaseUrl}/storage/v1/bucket/${bucket}`, {
+    method: "PUT",
     headers: storageHeaders(),
     body: JSON.stringify({
-      id: bucket,
-      name: bucket,
       public: true,
       file_size_limit: maxUploadFileBytes,
     }),
   });
 
-  if (!createResponse.ok && createResponse.status !== 409) {
-    const message = await createResponse.text();
-    throw new Error(message || "Unable to create recap media bucket");
+  if (!updateResponse.ok) {
+    const message = await updateResponse.text();
+    throw new Error(message || "Unable to update recap media bucket");
   }
 }
 
