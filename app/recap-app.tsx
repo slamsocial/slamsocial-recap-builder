@@ -81,8 +81,8 @@ const sessionKey = "slamsocial-recap-session";
 const tabs = ["Setup", "Metrics", "Platforms", "Posts", "Content", "Modules"];
 const loginPassword = "Admin1";
 const fallbackAppUrl = "https://recaps.slamsocial.biz";
-const maxEmbeddedFileBytes = 2.5 * 1024 * 1024;
-const maxEmbeddedBatchBytes = 8 * 1024 * 1024;
+const maxUploadFileBytes = 80 * 1024 * 1024;
+const maxUploadBatchBytes = 320 * 1024 * 1024;
 
 const platformCatalog = [
   { key: "tiktok", label: "TikTok", mark: "♪", className: "tiktok", logo: "/images/platforms/tiktok.webp" },
@@ -249,6 +249,45 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(bytes >= 1024 * 1024 ? 1 : 2)}MB`;
 }
 
+function safeFileName(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "media";
+}
+
+async function uploadMediaFile(file: File, folder: string): Promise<ContentMedia> {
+  if (file.size > maxUploadFileBytes) {
+    throw new Error(`${file.name} is too large. Keep each asset under ${formatBytes(maxUploadFileBytes)}.`);
+  }
+
+  const signedResponse = await fetch("/api/media/sign", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ fileName: safeFileName(file.name), folder, size: file.size }),
+  });
+
+  if (!signedResponse.ok) {
+    const message = await signedResponse.text();
+    throw new Error(message || "Unable to prepare media upload.");
+  }
+
+  const signed = await signedResponse.json() as { uploadUrl: string; publicUrl: string };
+  const uploadResponse = await fetch(signed.uploadUrl, {
+    method: "PUT",
+    headers: { "content-type": file.type || "application/octet-stream" },
+    body: file,
+  });
+
+  if (!uploadResponse.ok) {
+    const message = await uploadResponse.text();
+    throw new Error(message || "Unable to upload media.");
+  }
+
+  return {
+    url: signed.publicUrl,
+    type: file.type.startsWith("video") ? "video" : "image",
+    name: file.name,
+  };
+}
+
 function getOrganicAspect(item: OrganicItem): MediaAspect {
   return item.aspect ?? "4 / 5";
 }
@@ -402,27 +441,36 @@ function AnimatedMetricValue({ value }: { value: string }) {
   return <>{match ? displayValue : value}</>;
 }
 
-function FileField({ label, accept, onLoad }: { label: string; accept: string; onLoad: (dataUrl: string, fileName: string, fileType: string) => void }) {
+function FileField({ label, accept, folder = "single", onLoad }: { label: string; accept: string; folder?: string; onLoad: (url: string, fileName: string, fileType: string) => void }) {
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   return (
     <label className="file-field">
-      <span>{label}</span>
+      <span>{busy ? "Uploading..." : label}</span>
       <input
         accept={accept}
+        disabled={busy}
         type="file"
-        onChange={(event) => {
+        onChange={async (event) => {
           const file = event.target.files?.[0];
           if (!file) return;
-          if (file.size > maxEmbeddedFileBytes) {
-            setError(`File is too large for embedded preview. Keep it under ${formatBytes(maxEmbeddedFileBytes)}.`);
+          if (file.size > maxUploadFileBytes) {
+            setError(`${file.name} is too large. Keep it under ${formatBytes(maxUploadFileBytes)}.`);
             event.currentTarget.value = "";
             return;
           }
           setError("");
-          const reader = new FileReader();
-          reader.onload = () => onLoad(String(reader.result), file.name, file.type);
-          reader.readAsDataURL(file);
+          setBusy(true);
+          try {
+            const media = await uploadMediaFile(file, folder);
+            onLoad(media.url, media.name, media.type);
+          } catch (error) {
+            setError(error instanceof Error ? error.message : "Upload failed.");
+          } finally {
+            setBusy(false);
+            event.currentTarget.value = "";
+          }
         }}
       />
       {error ? <em>{error}</em> : null}
@@ -433,48 +481,52 @@ function FileField({ label, accept, onLoad }: { label: string; accept: string; o
 function MultiFileField({
   label,
   accept,
+  folder = "carousel",
   maxFiles = 12,
   onLoad,
 }: {
   label: string;
   accept: string;
+  folder?: string;
   maxFiles?: number;
   onLoad: (files: ContentMedia[]) => void;
 }) {
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   return (
     <label className="file-field">
-      <span>{label}</span>
+      <span>{busy ? "Uploading..." : label}</span>
       <input
         accept={accept}
+        disabled={busy}
         multiple
         type="file"
-        onChange={(event) => {
+        onChange={async (event) => {
           const files = Array.from(event.target.files ?? []).slice(0, maxFiles);
           if (!files.length) return;
-          const oversized = files.find((file) => file.size > maxEmbeddedFileBytes);
+          const oversized = files.find((file) => file.size > maxUploadFileBytes);
           if (oversized) {
-            setError(`${oversized.name} is too large. Keep each asset under ${formatBytes(maxEmbeddedFileBytes)}.`);
+            setError(`${oversized.name} is too large. Keep each asset under ${formatBytes(maxUploadFileBytes)}.`);
             event.currentTarget.value = "";
             return;
           }
           const totalBytes = files.reduce((total, file) => total + file.size, 0);
-          if (totalBytes > maxEmbeddedBatchBytes) {
-            setError(`This upload is ${formatBytes(totalBytes)}. Keep each carousel batch under ${formatBytes(maxEmbeddedBatchBytes)}.`);
+          if (totalBytes > maxUploadBatchBytes) {
+            setError(`This upload is ${formatBytes(totalBytes)}. Keep each carousel batch under ${formatBytes(maxUploadBatchBytes)}.`);
             event.currentTarget.value = "";
             return;
           }
           setError("");
-          Promise.all(files.map((file) => new Promise<ContentMedia>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve({
-              url: String(reader.result),
-              type: file.type.startsWith("video") ? "video" : "image",
-              name: file.name,
-            });
-            reader.readAsDataURL(file);
-          }))).then(onLoad);
+          setBusy(true);
+          try {
+            onLoad(await Promise.all(files.map((file) => uploadMediaFile(file, folder))));
+          } catch (error) {
+            setError(error instanceof Error ? error.message : "Upload failed.");
+          } finally {
+            setBusy(false);
+            event.currentTarget.value = "";
+          }
         }}
       />
       {error ? <em>{error}</em> : null}
