@@ -558,6 +558,14 @@ function ContentMediaCarousel({ item, mediaItems }: { item: ContentItem; mediaIt
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    mediaItems.forEach((media) => {
+      if (media.type !== "image") return;
+      const image = new Image();
+      image.src = media.url;
+    });
+  }, [mediaItems]);
+
   function scrollToSlide(index: number) {
     const scroller = scrollerRef.current;
     if (!scroller) return;
