@@ -42,6 +42,7 @@ type ContentItem = {
 type OrganicItem = {
   title: string;
   type: string;
+  body: string;
   url: string;
   mediaUrl?: string;
   mediaType?: "image" | "video";
@@ -142,9 +143,9 @@ const sampleRecap: Recap = {
     { title: "Opening weekend thread", format: "Text + clip", platform: "X", mediaUrl: "", mediaType: "image", aspect: "16 / 9" },
   ],
   organic: [
-    { title: "Entertainment blog roundup", type: "News article", url: "https://example.com/entertainment-roundup" },
-    { title: "Fan account compilation", type: "Organic social post", url: "https://www.instagram.com/p/fan-compilation" },
-    { title: "Cinema culture newsletter mention", type: "Newsletter", url: "https://example.com/newsletter/cinema-culture" },
+    { title: "Entertainment blog roundup", type: "News article", body: "Earned editorial pickup extending campaign conversation beyond paid creator posts.", url: "https://example.com/entertainment-roundup" },
+    { title: "Fan account compilation", type: "Organic social post", body: "Fan-led compilation showing broader social pickup from the campaign creative.", url: "https://www.instagram.com/p/fan-compilation" },
+    { title: "Cinema culture newsletter mention", type: "Newsletter", body: "Newsletter mention adding another organic touchpoint with entertainment audiences.", url: "https://example.com/newsletter/cinema-culture" },
   ],
   pink58: [
     { label: "Posts tracked", value: "126", note: "Creator + earned clips" },
@@ -323,7 +324,7 @@ function normalizeRecap(recap: Recap): Recap {
       const mediaKey = getContentMedia(item).map((media) => media.url || media.name).join("|");
       return `${item.title}-${item.format}-${item.platform}-${mediaKey}`;
     }),
-    organic: uniqueBy(recap.organic, (item) => `${item.type}-${item.title}-${item.url}-${item.mediaUrl ?? ""}`),
+    organic: uniqueBy(recap.organic.map((item) => ({ ...item, body: item.body ?? "" })), (item) => `${item.type}-${item.title}-${item.url}-${item.body}-${item.mediaUrl ?? ""}`),
     pink58: uniqueBy(recap.pink58, (metric) => metric.label),
     campaignNotes: recap.campaignNotes ?? "",
   };
@@ -1073,7 +1074,7 @@ function Editor({
           <div className="nested">
             <div className="nested-heading">
               <span>Organic activity tiles</span>
-              <button className="add" onClick={() => patchRecap({ organic: [...activeRecap.organic, { type: "Organic social post", title: "New organic activity", url: "https://", mediaUrl: "", mediaType: "image", mediaName: "", aspect: "4 / 5" }] })} type="button">Add organic tile</button>
+              <button className="add" onClick={() => patchRecap({ organic: [...activeRecap.organic, { type: "Organic social post", title: "", body: "", url: "", mediaUrl: "", mediaType: "image", mediaName: "", aspect: "4 / 5" }] })} type="button">Add organic tile</button>
             </div>
             {activeRecap.organic.map((item, index) => (
               <div className="row-editor" key={`organic-${index}`}>
@@ -1112,6 +1113,7 @@ function Editor({
                 </label>
                 <Field label="Type" value={item.type} onChange={(type) => patchRecap({ organic: updateAt(activeRecap.organic, index, { type }) })} />
                 <Field label="Title" value={item.title} onChange={(title) => patchRecap({ organic: updateAt(activeRecap.organic, index, { title }) })} />
+                <Field label="Body text" value={item.body ?? ""} multiline onChange={(body) => patchRecap({ organic: updateAt(activeRecap.organic, index, { body }) })} />
                 <Field label="URL" value={item.url} onChange={(url) => patchRecap({ organic: updateAt(activeRecap.organic, index, { url }) })} />
               </div>
             ))}
@@ -1138,7 +1140,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
     return `${item.title}-${item.format}-${item.platform}-${mediaKey}`;
   }), [report.content]);
   const pink58 = useMemo(() => uniqueBy(report.pink58, (metric) => metric.label), [report.pink58]);
-  const organic = useMemo(() => uniqueBy(report.organic, (item) => `${item.type}-${item.title}-${item.url}`), [report.organic]);
+  const organic = useMemo(() => uniqueBy(report.organic.map((item) => ({ ...item, body: item.body ?? "" })), (item) => `${item.type}-${item.title}-${item.url}-${item.body}`), [report.organic]);
 
   return (
     <section className={`recap-canvas ${clientMode ? "client-canvas" : ""}`} aria-label="Live campaign recap">
@@ -1293,8 +1295,8 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
         <section className="report-section reveal-card">
           <div className="section-head"><div><p className="section-kicker">Organic lift</p><h3>Earned activity off the back of the campaign</h3></div></div>
           <div className="organic-list">
-            {organic.map((item) => (
-              <a className={item.mediaUrl ? "has-media" : ""} href={item.url} key={`${item.title}-${item.url}`} rel="noopener noreferrer" target="_blank">
+            {organic.map((item, index) => (
+              <a className={item.mediaUrl ? "has-media" : ""} href={item.url || undefined} key={`${item.title}-${item.url}-${index}`} rel="noopener noreferrer" target="_blank">
                 {item.mediaUrl ? (
                   <span className="organic-media" style={{ aspectRatio: getOrganicAspect(item) }}>
                     {item.mediaType === "video" ? <video muted playsInline preload="metadata" src={item.mediaUrl} /> : <img alt="" src={item.mediaUrl} />}
@@ -1302,6 +1304,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
                 ) : null}
                 <span>{item.type}</span>
                 <strong>{item.title}</strong>
+                {item.body ? <p className="organic-description">{item.body}</p> : null}
               </a>
             ))}
           </div>

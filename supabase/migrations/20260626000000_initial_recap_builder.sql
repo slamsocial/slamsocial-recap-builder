@@ -81,7 +81,12 @@ create table if not exists public.recap_organic_items (
   sort_order integer not null default 0,
   title text not null default '',
   type text not null default '',
-  url text not null default ''
+  body_text text not null default '',
+  url text not null default '',
+  media_url text not null default '',
+  media_type text not null default 'image' check (media_type in ('image', 'video')),
+  media_name text not null default '',
+  aspect text not null default '4 / 5' check (aspect in ('4 / 5', '9 / 16', '1 / 1', '16 / 9'))
 );
 
 create index if not exists recaps_slug_idx on public.recaps(slug);

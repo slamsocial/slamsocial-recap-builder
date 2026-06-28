@@ -3,7 +3,16 @@ type Platform = { name: string; enabled: boolean; posts: string; views: string; 
 type Upload = { title: string; platform: string; datePosted: string; url: string; views: string; likes: string; comments: string; shares: string; saves: string; reposts: string };
 type ContentMedia = { url: string; type: "image" | "video"; name: string };
 type ContentItem = { title: string; format: string; platform: string; mediaUrl: string; mediaType: "image" | "video"; mediaItems?: ContentMedia[]; aspect: "4 / 5" | "9 / 16" | "1 / 1" | "16 / 9" };
-type OrganicItem = { title: string; type: string; url: string };
+type OrganicItem = {
+  title: string;
+  type: string;
+  body: string;
+  url: string;
+  mediaUrl?: string;
+  mediaType?: "image" | "video";
+  mediaName?: string;
+  aspect?: "4 / 5" | "9 / 16" | "1 / 1" | "16 / 9";
+};
 type Recap = {
   id: string;
   slug: string;
@@ -197,11 +206,20 @@ function toRecap(row: Record<string, unknown>, children: {
         aspect: ["4 / 5", "9 / 16", "1 / 1", "16 / 9"].includes(String(item.aspect)) ? String(item.aspect) as ContentItem["aspect"] : "4 / 5",
       };
     }),
-    organic: children.organic.sort((a, b) => Number(a.sort_order) - Number(b.sort_order)).map((item) => ({
-      title: String(item.title ?? ""),
-      type: String(item.type ?? ""),
-      url: String(item.url ?? ""),
-    })),
+    organic: children.organic.sort((a, b) => Number(a.sort_order) - Number(b.sort_order)).map((item) => {
+      const aspect = ["4 / 5", "9 / 16", "1 / 1", "16 / 9"].includes(String(item.aspect)) ? String(item.aspect) as OrganicItem["aspect"] : "4 / 5";
+
+      return {
+        title: String(item.title ?? ""),
+        type: String(item.type ?? ""),
+        body: String(item.body_text ?? ""),
+        url: String(item.url ?? ""),
+        mediaUrl: String(item.media_url ?? ""),
+        mediaType: item.media_type === "video" ? "video" : "image",
+        mediaName: String(item.media_name ?? ""),
+        aspect,
+      };
+    }),
     campaignNotes: String(row.campaign_notes ?? ""),
     recommendations: String(row.recommendations ?? ""),
     methodology: String(row.methodology ?? ""),
@@ -289,7 +307,18 @@ async function replaceChildren(recapId: string, recap: Recap) {
     media_type: item.mediaItems?.[0]?.type ?? item.mediaType,
     aspect: item.aspect,
   }));
-  const organic = recap.organic.map((item, index) => ({ recap_id: recapId, sort_order: index, ...item }));
+  const organic = recap.organic.map((item, index) => ({
+    recap_id: recapId,
+    sort_order: index,
+    title: item.title,
+    type: item.type,
+    body_text: item.body ?? "",
+    url: item.url,
+    media_url: item.mediaUrl ?? "",
+    media_type: item.mediaType ?? "image",
+    media_name: item.mediaName ?? "",
+    aspect: item.aspect ?? "4 / 5",
+  }));
   const insertUploads = async () => {
     if (!uploads.length) return null;
     try {
@@ -305,13 +334,29 @@ async function replaceChildren(recapId: string, recap: Recap) {
       return supabase("recap_uploads", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(fallbackUploads) });
     }
   };
+  const insertOrganic = async () => {
+    if (!organic.length) return null;
+    try {
+      return await supabase("recap_organic_items", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(organic) });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      const newColumns = ["body_text", "media_url", "media_type", "media_name", "aspect"];
+      if (!newColumns.some((column) => message.includes(column))) throw error;
+      const fallbackOrganic = organic.map((item) => {
+        const next = { ...item } as Record<string, unknown>;
+        newColumns.forEach((column) => delete next[column]);
+        return next;
+      });
+      return supabase("recap_organic_items", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(fallbackOrganic) });
+    }
+  };
 
   await Promise.all([
     metrics.length ? supabase("recap_metrics", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(metrics) }) : null,
     platforms.length ? supabase("recap_platforms", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(platforms) }) : null,
     insertUploads(),
     content.length ? supabase("recap_content_items", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(content) }) : null,
-    organic.length ? supabase("recap_organic_items", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(organic) }) : null,
+    insertOrganic(),
   ]);
 }
 
