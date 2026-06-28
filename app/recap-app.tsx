@@ -81,8 +81,8 @@ const sessionKey = "slamsocial-recap-session";
 const tabs = ["Setup", "Metrics", "Platforms", "Posts", "Content", "Modules"];
 const loginPassword = "Admin1";
 const fallbackAppUrl = "https://recaps.slamsocial.biz";
-const maxUploadFileBytes = 80 * 1024 * 1024;
-const maxUploadBatchBytes = 320 * 1024 * 1024;
+const maxUploadFileBytes = 50 * 1024 * 1024;
+const maxUploadBatchBytes = 240 * 1024 * 1024;
 
 const platformCatalog = [
   { key: "tiktok", label: "TikTok", mark: "♪", className: "tiktok", logo: "/images/platforms/tiktok.webp" },
@@ -280,7 +280,7 @@ async function uploadMediaFile(file: File, folder: string): Promise<ContentMedia
     const message = await uploadResponse.text();
     throw new Error(
       message.includes("Payload too large")
-        ? `Supabase rejected this file as too large. Try a file under ${formatBytes(maxUploadFileBytes)} after the latest deploy finishes.`
+        ? `Supabase rejected this file as too large. Use a file under ${formatBytes(maxUploadFileBytes)}, or compress larger videos before adding them.`
         : message || "Unable to upload media.",
     );
   }

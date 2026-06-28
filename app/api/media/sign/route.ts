@@ -1,7 +1,7 @@
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 const bucket = "recap-media";
-const maxUploadFileBytes = 80 * 1024 * 1024;
+const maxUploadFileBytes = 50 * 1024 * 1024;
 
 function safeFileName(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "media";
