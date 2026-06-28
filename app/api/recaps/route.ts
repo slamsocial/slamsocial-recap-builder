@@ -1,6 +1,6 @@
 type Metric = { label: string; value: string; note: string };
 type Platform = { name: string; enabled: boolean; posts: string; views: string; engagements: string; er: string; cpm: string };
-type Upload = { title: string; platform: string; url: string; views: string; likes: string; comments: string; shares: string; saves: string; reposts: string };
+type Upload = { title: string; platform: string; datePosted: string; url: string; views: string; likes: string; comments: string; shares: string; saves: string; reposts: string };
 type ContentMedia = { url: string; type: "image" | "video"; name: string };
 type ContentItem = { title: string; format: string; platform: string; mediaUrl: string; mediaType: "image" | "video"; mediaItems?: ContentMedia[]; aspect: "4 / 5" | "9 / 16" | "1 / 1" | "16 / 9" };
 type OrganicItem = { title: string; type: string; url: string };
@@ -174,13 +174,14 @@ function toRecap(row: Record<string, unknown>, children: {
     uploads: children.uploads.sort((a, b) => Number(a.sort_order) - Number(b.sort_order)).map((item) => ({
       title: String(item.title ?? ""),
       platform: String(item.platform ?? ""),
+      datePosted: String(item.posted_date ?? ""),
       url: String(item.url ?? ""),
-      views: String(item.views ?? "0"),
-      likes: String(item.likes ?? "0"),
-      comments: String(item.comments ?? "0"),
-      shares: String(item.shares ?? "0"),
-      saves: String(item.saves ?? "0"),
-      reposts: String(item.reposts ?? "0"),
+      views: String(item.views ?? ""),
+      likes: String(item.likes ?? ""),
+      comments: String(item.comments ?? ""),
+      shares: String(item.shares ?? ""),
+      saves: String(item.saves ?? ""),
+      reposts: String(item.reposts ?? ""),
     })),
     content: children.content.sort((a, b) => Number(a.sort_order) - Number(b.sort_order)).map((item) => {
       const mediaType = item.media_type === "video" ? "video" : "image";
@@ -264,7 +265,20 @@ async function replaceChildren(recapId: string, recap: Recap) {
     ...recap.pink58.map((item, index) => ({ recap_id: recapId, metric_group: "pink58", sort_order: index, ...item })),
   ];
   const platforms = recap.platforms.map((item, index) => ({ recap_id: recapId, sort_order: index, ...item }));
-  const uploads = recap.uploads.map((item, index) => ({ recap_id: recapId, sort_order: index, ...item }));
+  const uploads = recap.uploads.map((item, index) => ({
+    recap_id: recapId,
+    sort_order: index,
+    title: item.title,
+    platform: item.platform,
+    posted_date: item.datePosted ?? "",
+    url: item.url,
+    views: item.views,
+    likes: item.likes,
+    comments: item.comments,
+    shares: item.shares,
+    saves: item.saves,
+    reposts: item.reposts,
+  }));
   const content = recap.content.map((item, index) => ({
     recap_id: recapId,
     sort_order: index,
@@ -276,11 +290,26 @@ async function replaceChildren(recapId: string, recap: Recap) {
     aspect: item.aspect,
   }));
   const organic = recap.organic.map((item, index) => ({ recap_id: recapId, sort_order: index, ...item }));
+  const insertUploads = async () => {
+    if (!uploads.length) return null;
+    try {
+      return await supabase("recap_uploads", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(uploads) });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (!message.includes("posted_date")) throw error;
+      const fallbackUploads = uploads.map((item) => {
+        const next = { ...item } as Record<string, unknown>;
+        delete next.posted_date;
+        return next;
+      });
+      return supabase("recap_uploads", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(fallbackUploads) });
+    }
+  };
 
   await Promise.all([
     metrics.length ? supabase("recap_metrics", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(metrics) }) : null,
     platforms.length ? supabase("recap_platforms", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(platforms) }) : null,
-    uploads.length ? supabase("recap_uploads", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(uploads) }) : null,
+    insertUploads(),
     content.length ? supabase("recap_content_items", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(content) }) : null,
     organic.length ? supabase("recap_organic_items", { method: "POST", headers: headers("return=minimal"), body: JSON.stringify(organic) }) : null,
   ]);

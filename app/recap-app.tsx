@@ -15,6 +15,7 @@ type Platform = {
 type Upload = {
   title: string;
   platform: string;
+  datePosted: string;
   url: string;
   views: string;
   likes: string;
@@ -130,9 +131,9 @@ const sampleRecap: Recap = {
     { name: "X", enabled: true, posts: "5", views: "520K", engagements: "23.8K", er: "4.6%", cpm: "$6.05" },
   ],
   uploads: [
-    { title: "Creator launch wave", platform: "TikTok", url: "https://www.tiktok.com/@creator/video/launch-wave", views: "1.24M", likes: "94K", comments: "4.8K", shares: "11K", saves: "7.2K", reposts: "2.1K" },
-    { title: "Behind the scenes carousel", platform: "Instagram", url: "https://www.instagram.com/p/behind-the-scenes", views: "684K", likes: "42K", comments: "2.4K", shares: "5.1K", saves: "8.8K", reposts: "1.3K" },
-    { title: "Reaction clip thread", platform: "X", url: "https://x.com/slamsocial/status/reaction-thread", views: "212K", likes: "12K", comments: "810", shares: "2.2K", saves: "430", reposts: "3.4K" },
+    { title: "Creator launch wave", platform: "TikTok", datePosted: "Launch week", url: "https://www.tiktok.com/@creator/video/launch-wave", views: "1.24M", likes: "94K", comments: "4.8K", shares: "11K", saves: "7.2K", reposts: "2.1K" },
+    { title: "Behind the scenes carousel", platform: "Instagram", datePosted: "Launch week", url: "https://www.instagram.com/p/behind-the-scenes", views: "684K", likes: "42K", comments: "2.4K", shares: "5.1K", saves: "8.8K", reposts: "1.3K" },
+    { title: "Reaction clip thread", platform: "X", datePosted: "Final weekend", url: "https://x.com/slamsocial/status/reaction-thread", views: "212K", likes: "12K", comments: "810", shares: "2.2K", saves: "430", reposts: "3.4K" },
   ],
   content: [
     { title: "Launch meme edit", format: "9:16 short-form", platform: "TikTok + Reels", mediaUrl: "", mediaType: "image", aspect: "9 / 16" },
@@ -317,7 +318,7 @@ function normalizeRecap(recap: Recap): Recap {
     ...recap,
     metrics: uniqueBy(recap.metrics, (metric) => metric.label),
     platforms: uniqueBy(recap.platforms, (platform) => platform.name),
-    uploads: uniqueBy(recap.uploads, (upload) => `${upload.url || upload.title}-${upload.platform}`),
+    uploads: uniqueBy(recap.uploads.map((upload) => ({ ...upload, datePosted: upload.datePosted ?? "" })), (upload) => `${upload.url || upload.title}-${upload.platform}-${upload.datePosted}`),
     content: uniqueBy(recap.content, (item) => {
       const mediaKey = getContentMedia(item).map((media) => media.url || media.name).join("|");
       return `${item.title}-${item.format}-${item.platform}-${mediaKey}`;
@@ -982,12 +983,12 @@ function Editor({
           {activeRecap.uploads.map((upload, index) => (
             <div className="row-editor" key={`upload-${index}`}>
               <button className="remove" onClick={() => patchRecap({ uploads: removeAt(activeRecap.uploads, index) })} type="button">Remove</button>
-              {(["title", "platform", "url", "views", "likes", "comments", "shares", "saves", "reposts"] as const).map((field) => (
+              {(["title", "platform", "datePosted", "url", "views", "likes", "comments", "shares", "saves", "reposts"] as const).map((field) => (
                 <Field key={field} label={field} value={upload[field]} onChange={(value) => patchRecap({ uploads: updateAt(activeRecap.uploads, index, { [field]: value }) })} />
               ))}
             </div>
           ))}
-          <button className="add" onClick={() => patchRecap({ uploads: [...activeRecap.uploads, { title: "New upload", platform: "Platform", url: "https://", views: "0", likes: "0", comments: "0", shares: "0", saves: "0", reposts: "0" }] })} type="button">Add post link</button>
+          <button className="add" onClick={() => patchRecap({ uploads: [...activeRecap.uploads, { title: "", platform: "Instagram", datePosted: "", url: "", views: "", likes: "", comments: "", shares: "", saves: "", reposts: "" }] })} type="button">Add post link</button>
         </div>
       ) : null}
 
@@ -1123,7 +1124,7 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
   const [pink58Open, setPink58Open] = useState(false);
   const metrics = useMemo(() => uniqueBy(report.metrics, (metric) => metric.label), [report.metrics]);
   const platforms = useMemo(() => uniqueBy(activePlatforms, (platform) => platform.name), [activePlatforms]);
-  const uploads = useMemo(() => uniqueBy(report.uploads, (upload) => `${upload.url || upload.title}-${upload.platform}`), [report.uploads]);
+  const uploads = useMemo(() => uniqueBy(report.uploads.map((upload) => ({ ...upload, datePosted: upload.datePosted ?? "" })), (upload) => `${upload.url || upload.title}-${upload.platform}-${upload.datePosted}`), [report.uploads]);
   const content = useMemo(() => uniqueBy(report.content, (item) => {
     const mediaKey = getContentMedia(item).map((media) => media.url || media.name).join("|");
     return `${item.title}-${item.format}-${item.platform}-${mediaKey}`;
@@ -1208,12 +1209,13 @@ function RecapCanvas({ report, activePlatforms, clientMode }: { report: Recap; a
               </div>
               <div className="post-index-table">
                 <div className="post-index-row table-head">
-                  <span>Post</span><span>Platform</span><span>Views</span><span>Likes</span><span>Comments</span><span>Shares</span><span>Saves</span><span>Reposts</span>
+                  <span>Post</span><span>Platform</span><span>Date posted</span><span>Views</span><span>Likes</span><span>Comments</span><span>Shares</span><span>Saves</span><span>Reposts</span>
                 </div>
-                {uploads.map((upload) => (
-                  <a className="post-index-row" href={upload.url} key={`${upload.title}-${upload.url}`} rel="noopener noreferrer" target="_blank">
+                {uploads.map((upload, index) => (
+                  <a className="post-index-row" href={upload.url || undefined} key={`${upload.title}-${upload.url}-${index}`} rel="noopener noreferrer" target="_blank">
                     <strong>{upload.title}</strong>
                     <span className="mobile-stat" data-label="Platform"><PlatformBadge compact platform={upload.platform} /></span>
+                    <Stat label="Date posted" value={upload.datePosted} />
                     <Stat label="Views" value={upload.views} />
                     <Stat label="Likes" value={upload.likes} />
                     <Stat label="Comments" value={upload.comments} />

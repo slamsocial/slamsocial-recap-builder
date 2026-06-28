@@ -53,6 +53,7 @@ create table if not exists public.recap_uploads (
   sort_order integer not null default 0,
   title text not null default '',
   platform text not null default '',
+  posted_date text not null default '',
   url text not null default '',
   views text not null default '0',
   likes text not null default '0',
