@@ -626,6 +626,7 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
   const [remoteEnabled, setRemoteEnabled] = useState(false);
   const [remoteReady, setRemoteReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Device draft");
+  const [clientUnavailable, setClientUnavailable] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishCopied, setPublishCopied] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<Recap | null>(null);
@@ -651,8 +652,10 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
             setRecaps(remoteRecaps);
             setActiveId(remoteRecaps[0].id);
             setSaveStatus("Synced to Supabase");
+            setClientUnavailable(false);
           } else if (payload.configured) {
             setSaveStatus("Ready to sync");
+            if (initialMode === "client" && initialSlug) setClientUnavailable(true);
           }
         })
         .catch(() => {
@@ -809,6 +812,23 @@ export default function RecapApp({ initialMode = "dashboard", initialSlug }: { i
             <button type="submit">Enter dashboard</button>
           </form>
         </div>
+      </main>
+    );
+  }
+
+  if (clientUnavailable && view === "client") {
+    return (
+      <main className="builder-shell unavailable-shell">
+        <LoadingScreen active={loading} />
+        <div className="ambient ambient-one" />
+        <div className="ambient ambient-two" />
+        <section className="unavailable-card" aria-label="Campaign unavailable">
+          <img alt="SlamSocial" src="/images/slamsocial-logo.png" />
+          <p>Campaign recap</p>
+          <h1>No longer available</h1>
+          <span>This campaign recap link is no longer active. Contact SlamSocial management if you need access.</span>
+          <a href="mailto:management@slamsocial.biz">Contact management</a>
+        </section>
       </main>
     );
   }
